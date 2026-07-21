@@ -108,13 +108,6 @@ export function renderBoard(container, session, onMove) {
     setTimeout(() => el.classList.remove('invalid'), 600);
   };
 
-  // Persistently outline the given conflicting cells (and clear any previous
-  // marks). `cells` is a list of { r, c } from puzzleEngine.findConflicts.
-  const showConflicts = (cells) => {
-    for (const row of cellEls) for (const el of row) el.classList.remove('conflict');
-    for (const { r, c } of cells) cellEls[r][c].classList.add('conflict');
-  };
-
   update();
-  return { update, flashInvalid, showConflicts };
+  return { update, flashInvalid };
 }

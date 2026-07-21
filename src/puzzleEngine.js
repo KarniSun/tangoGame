@@ -243,6 +243,7 @@ export function forcedSolve(startGrid, clues, depth = 0) {
   const grid = cloneGrid(startGrid);
   let progress = true;
   let passes = 0; // number of deduction "waves"; a proxy for how deep the chains run
+  let hardSteps = 0; // moves that required contradiction reasoning (a difficulty proxy)
 
   while (progress) {
     progress = false;
@@ -256,7 +257,8 @@ export function forcedSolve(startGrid, clues, depth = 0) {
         const canMoon =
           isValidPlacement(grid, r, c, MOON) && satisfiesClues(grid, clues, r, c, MOON);
 
-        if (!canSun && !canMoon) return { solved: false, contradiction: true, passes };
+        if (!canSun && !canMoon)
+          return { solved: false, contradiction: true, passes, hardSteps };
         if (canSun !== canMoon) {
           grid[r][c] = canSun ? SUN : MOON; // only one option — forced move
           progress = true;
@@ -281,6 +283,7 @@ export function forcedSolve(startGrid, clues, depth = 0) {
             if (forcedSolve(test, clues, depth - 1).contradiction) {
               grid[r][c] = sym === SUN ? MOON : SUN; // sym disproven → other is forced
               progress = true;
+              hardSteps++;
               break outer;
             }
           }
@@ -300,7 +303,7 @@ export function forcedSolve(startGrid, clues, depth = 0) {
       }
     }
   }
-  return { solved, contradiction: false, passes };
+  return { solved, contradiction: false, passes, hardSteps };
 }
 
 /**
@@ -384,13 +387,15 @@ export function createGame({ clueCount = 5, minGivens = 10, sampleBest = 1, dept
   let bestScore = -Infinity;
   for (let i = 0; i < sampleBest; i++) {
     const candidate = carveOne(clueCount, minGivens, depth);
-    const { passes } = forcedSolve(
+    const { passes, hardSteps } = forcedSolve(
       gridFromPuzzle(candidate.puzzle),
       candidate.puzzle.clues,
       depth
     );
-    // Reward deduction depth first, then sparser boards.
-    const score = passes * 100 - candidate.puzzle.givens.length;
+    // Reward the amount of contradiction reasoning required most (that's what
+    // actually makes a board hard for a human), then deduction depth, then
+    // sparser boards. Most random boards need ~1 such step; the hardest need ~9.
+    const score = hardSteps * 10000 + passes * 100 - candidate.puzzle.givens.length;
     if (score > bestScore) {
       bestScore = score;
       best = candidate;
@@ -421,31 +426,6 @@ export function isBoardComplete(grid, solution) {
     }
   }
   return true;
-}
-
-/**
- * Return every currently-filled cell that violates a rule, so the UI can mark
- * conflicts persistently (not just a brief flash). A cell conflicts if, with
- * itself temporarily cleared, its own symbol would be an illegal placement —
- * this catches three-in-a-row (all three cells flag), a line holding more than
- * three of a symbol (every surplus cell flags), and broken =/× clues (both
- * cells flag). The unique solution has zero conflicts, so a correctly-solved
- * board is never marked.
- */
-export function findConflicts(grid, clues) {
-  const conflicts = [];
-  for (let r = 0; r < SIZE; r++) {
-    for (let c = 0; c < SIZE; c++) {
-      const sym = grid[r][c];
-      if (sym === EMPTY) continue;
-      grid[r][c] = EMPTY; // clear so the cell is judged against its neighbours
-      const bad =
-        !isValidPlacement(grid, r, c, sym) || !satisfiesClues(grid, clues, r, c, sym);
-      grid[r][c] = sym; // restore
-      if (bad) conflicts.push({ r, c });
-    }
-  }
-  return conflicts;
 }
 
 /**

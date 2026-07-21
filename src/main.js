@@ -7,7 +7,7 @@
 // ---------------------------------------------------------------------------
 
 import { GameSession } from './gameSession.js';
-import { createGame, findConflicts, EMPTY } from './puzzleEngine.js';
+import { createGame, EMPTY } from './puzzleEngine.js';
 import { renderBoard } from './boardRenderer.js';
 import * as ui from './ui.js';
 
@@ -20,10 +20,10 @@ const DIFFICULTY = {
   easy: { minGivens: 16, clueCount: 5 },
   medium: { minGivens: 11, clueCount: 5 },
   hard: { minGivens: 6, clueCount: 5 },
-  // Expert uses depth-1 contradiction reasoning: every board REQUIRES
-  // "assume-and-refute" logic (simple elimination alone stalls) — still fair,
-  // never guessing.
-  expert: { minGivens: 0, clueCount: 3, sampleBest: 30, depth: 1 },
+  // Expert: sample 120 candidates and keep the one demanding the MOST
+  // contradiction-reasoning steps (~9 vs a typical 1) — still fully fair, never
+  // guessing, but relentlessly demanding.
+  expert: { minGivens: 0, clueCount: 2, sampleBest: 120, depth: 1 },
 };
 let difficulty = 'medium'; // current home-screen selection
 let activeDifficulty = 'medium'; // difficulty of the game currently being played
@@ -188,14 +188,13 @@ function refreshUndo() {
 let fullHintShown = false;
 
 /**
- * Persistently mark rule-violating cells, and — when the board is completely
- * full but still not the solution — explain why it didn't count as solved.
+ * When the board is completely full but still not the solution, explain why it
+ * didn't count as solved. Only fires on a full board, so it never nags mid-play.
  */
 function refreshConflicts() {
-  board.showConflicts(findConflicts(session.grid, session.puzzle.clues));
   const full = session.grid.every((row) => row.every((v) => v !== EMPTY));
   if (full && !session.isSolved()) {
-    ui.setStatus('Board full, but not solved — fix the red cells & check the = / × clues.');
+    ui.setStatus('Board full, but not solved — check the = / × clues and each row & column.');
     fullHintShown = true;
   } else if (fullHintShown) {
     ui.setStatus(''); // clear the hint once the player edits the board again
