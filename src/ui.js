@@ -33,6 +33,21 @@ export function setupHome({ onSolo, onCreate, onJoin }) {
   });
 }
 
+/**
+ * Wire the difficulty segmented control. Clicking a button marks it active and
+ * calls `onChange(level)` with 'easy' | 'medium' | 'hard'. Purely presentational
+ * — main.js keeps the selected value and feeds it into the puzzle generator.
+ */
+export function setupDifficulty(onChange) {
+  const buttons = document.querySelectorAll('.diff-btn');
+  buttons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      buttons.forEach((b) => b.classList.toggle('active', b === btn));
+      onChange(btn.dataset.diff);
+    });
+  });
+}
+
 /** Toggle which mode-specific chrome is visible on the game screen. */
 export function configureGameChrome({ mode }) {
   const multiplayer = mode === 'create' || mode === 'join';

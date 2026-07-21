@@ -13,6 +13,16 @@ import * as ui from './ui.js';
 
 const BEST_KEY = 'tango-best-time';
 
+// Difficulty presets fed into createGame(). Fewer givens = harder (more of the
+// board must be deduced). The host's choice is baked into the generated puzzle,
+// so in multiplayer the joining player automatically gets the same difficulty.
+const DIFFICULTY = {
+  easy: { minGivens: 16, clueCount: 5 },
+  medium: { minGivens: 11, clueCount: 5 },
+  hard: { minGivens: 6, clueCount: 5 },
+};
+let difficulty = 'medium'; // current home-screen selection
+
 // Shared per-game runtime state. Rebuilt every time a game starts.
 let session = null;
 let board = null;
@@ -31,6 +41,7 @@ let myFinishTime = null; // my elapsed seconds at solve, known before Firebase e
 // --- boot -------------------------------------------------------------------
 
 ui.setupHome({ onSolo: startSolo, onCreate: startCreate, onJoin: startJoin });
+ui.setupDifficulty((level) => (difficulty = level));
 setupResultDismiss();
 setupGameControls();
 
@@ -46,7 +57,7 @@ if (roomParam) {
 
 function startSolo() {
   mode = 'solo';
-  beginGame(createGame());
+  beginGame(createGame(DIFFICULTY[difficulty]));
   ui.configureGameChrome({ mode });
   ui.setBest(loadBest());
   ui.setStatus('Solve it as fast as you can!');
@@ -59,7 +70,7 @@ async function startCreate() {
   try {
     mp = await import('./multiplayer.js');
     roomCode = mp.generateRoomCode();
-    const game = createGame();
+    const game = createGame(DIFFICULTY[difficulty]);
     myRole = await mp.createRoom(roomCode, game);
 
     beginGame(game);
@@ -227,7 +238,7 @@ function resolveMultiplayer(me, opp) {
 async function doRematch() {
   try {
     ui.hideResult();
-    await mp.writeRematch(roomCode, createGame());
+    await mp.writeRematch(roomCode, createGame(DIFFICULTY[difficulty]));
   } catch (err) {
     failToHome(err);
   }
