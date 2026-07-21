@@ -1,0 +1,381 @@
+/* style.css — clean, minimal, mobile-first, matching the LinkedIn Tango look. */
+
+:root {
+  --cream: #fbf7f1;
+  --ink: #1c2733;
+  --line: #2b3440;
+  --given-bg: #ece5d8;
+  --cell-bg: #ffffff;
+  --sun: #f5c518;
+  --moon: #3b82c4;
+  --accent: #2b3440;
+  --danger: #e5484d;
+  --muted: #8a8578;
+  --radius: 14px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  background: var(--cream);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  display: flex;
+  justify-content: center;
+  padding: 16px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* --- screens --------------------------------------------------------------- */
+
+.screen {
+  display: none;
+  width: 100%;
+  max-width: 460px;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+.screen.active {
+  display: flex;
+}
+
+/* --- home ------------------------------------------------------------------ */
+
+.home-card {
+  margin-top: 12vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  text-align: center;
+}
+.logo {
+  font-size: 2.6rem;
+  font-weight: 800;
+  letter-spacing: -1px;
+  margin: 0;
+}
+.logo span {
+  color: var(--moon);
+}
+.tagline {
+  margin: 0 0 8px;
+  color: var(--muted);
+}
+.join-row {
+  display: flex;
+  gap: 8px;
+}
+.join-row .input {
+  flex: 1;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  text-align: center;
+  font-weight: 700;
+}
+.divider {
+  position: relative;
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin: 4px 0;
+}
+.divider::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: #e2dccf;
+}
+.divider span {
+  position: relative;
+  background: var(--cream);
+  padding: 0 12px;
+}
+.error {
+  color: var(--danger);
+  min-height: 1.2em;
+  font-size: 0.9rem;
+  margin: 4px 0 0;
+}
+
+/* --- buttons / inputs ------------------------------------------------------ */
+
+.btn {
+  font: inherit;
+  font-weight: 700;
+  border: 2px solid var(--accent);
+  background: #fff;
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 12px 18px;
+  cursor: pointer;
+  transition: transform 0.05s ease, background 0.15s ease;
+}
+.btn:active {
+  transform: scale(0.97);
+}
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+}
+.btn-ghost {
+  border-color: transparent;
+  background: transparent;
+}
+.btn-small {
+  padding: 8px 14px;
+  font-size: 0.85rem;
+}
+.input {
+  font: inherit;
+  border: 2px solid #d8d1c2;
+  background: #fff;
+  border-radius: 12px;
+  padding: 12px 14px;
+  color: var(--ink);
+}
+.input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* --- game top bar ---------------------------------------------------------- */
+
+.topbar {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.panels {
+  flex: 1;
+  display: flex;
+  gap: 10px;
+}
+.panel {
+  flex: 1;
+  background: #fff;
+  border: 1.5px solid #e2dccf;
+  border-radius: var(--radius);
+  padding: 10px 12px;
+}
+.panel-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.panel-timer {
+  font-size: 1.5rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.progress {
+  height: 6px;
+  background: #eee7da;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+.progress-fill {
+  height: 100%;
+  width: 0;
+  background: var(--sun);
+  transition: width 0.2s ease;
+}
+.progress-fill.opp {
+  background: var(--moon);
+}
+.status {
+  min-height: 1.2em;
+  margin: 0;
+  color: var(--muted);
+  font-weight: 600;
+}
+.muted {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+/* --- board ----------------------------------------------------------------- */
+
+.board {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  aspect-ratio: 1 / 1;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  grid-template-rows: repeat(6, 1fr);
+  background: var(--line);
+  border: 3px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.cell {
+  border: 1px solid var(--line);
+  background: var(--cell-bg);
+  margin: 0;
+  padding: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cell.given {
+  background: var(--given-bg);
+  cursor: default;
+}
+.cell.invalid {
+  animation: flash-red 0.6s ease;
+}
+@keyframes flash-red {
+  0%,
+  100% {
+    background: var(--cell-bg);
+  }
+  30% {
+    background: #f7c9ca;
+  }
+}
+.cell.given.invalid {
+  animation: flash-red-given 0.6s ease;
+}
+@keyframes flash-red-given {
+  0%,
+  100% {
+    background: var(--given-bg);
+  }
+  30% {
+    background: #f0b9ba;
+  }
+}
+.symbol {
+  width: 100%;
+  height: 100%;
+}
+/* Only two symbol colours exist: sun = yellow, moon = blue. Given cells are
+   distinguished by their shaded background alone, not by a different symbol
+   colour, so the same symbol never appears in two colours. */
+
+/* Clue badges sit on the border between two cells (positioned inline by JS). */
+.clue {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 20px;
+  height: 20px;
+  background: #fff;
+  border: 1.5px solid var(--line);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--line);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* --- share / solo controls ------------------------------------------------- */
+
+.share-box {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  background: #fff;
+  border: 1.5px solid #e2dccf;
+  border-radius: var(--radius);
+  padding: 12px;
+}
+.share-box label {
+  width: 100%;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.share-box .input {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.85rem;
+}
+.solo-controls {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.game-controls {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+.btn[disabled] {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* --- result modal ---------------------------------------------------------- */
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(28, 39, 51, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 10;
+}
+.modal-card {
+  background: var(--cream);
+  border-radius: 20px;
+  padding: 28px 24px;
+  text-align: center;
+  max-width: 360px;
+  width: 100%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+}
+.modal-card h2 {
+  margin: 0 0 8px;
+  font-size: 1.6rem;
+}
+.modal-card p {
+  margin: 0 0 20px;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* --- desktop niceties ------------------------------------------------------ */
+
+@media (min-width: 620px) {
+  .panel-timer {
+    font-size: 1.8rem;
+  }
+  .board {
+    max-width: 460px;
+  }
+}

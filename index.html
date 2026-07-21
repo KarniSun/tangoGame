@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+    <title>Tango Duel</title>
+    <link rel="stylesheet" href="style.css?v=2" />
+  </head>
+  <body>
+    <!-- HOME ---------------------------------------------------------------->
+    <section id="screen-home" class="screen active">
+      <div class="home-card">
+        <h1 class="logo">Tango<span>Duel</span></h1>
+        <p class="tagline">A 1v1 race to solve the same sun &amp; moon puzzle.</p>
+
+        <button id="btn-create" class="btn btn-primary">Create Game</button>
+
+        <div class="join-row">
+          <input
+            id="join-code"
+            class="input"
+            maxlength="4"
+            placeholder="ROOM CODE"
+            autocomplete="off"
+          />
+          <button id="btn-join" class="btn">Join</button>
+        </div>
+
+        <div class="divider"><span>or</span></div>
+
+        <button id="btn-solo" class="btn btn-ghost">Practice Solo</button>
+        <p id="home-error" class="error"></p>
+      </div>
+    </section>
+
+    <!-- GAME ---------------------------------------------------------------->
+    <section id="screen-game" class="screen">
+      <header class="topbar">
+        <div class="panels">
+          <div class="panel">
+            <div class="panel-label" id="you-label">You</div>
+            <div class="panel-timer" id="you-timer">0.0s</div>
+            <div class="progress"><div class="progress-fill" id="you-progress"></div></div>
+          </div>
+          <div class="panel" id="opponent-panel">
+            <div class="panel-label">Opponent <span id="opp-status" class="muted"></span></div>
+            <div class="panel-timer" id="opp-timer">—</div>
+            <div class="progress"><div class="progress-fill opp" id="opp-progress"></div></div>
+          </div>
+        </div>
+        <button id="btn-leave" class="btn btn-small btn-ghost">Leave</button>
+      </header>
+
+      <p id="status" class="status"></p>
+
+      <div id="board" class="board"></div>
+
+      <div class="game-controls">
+        <button id="btn-undo" class="btn btn-small" disabled>↶ Undo</button>
+      </div>
+
+      <div id="share-box" class="share-box hidden">
+        <label>Share this link with a friend:</label>
+        <input id="share-link" class="input" readonly />
+        <button id="btn-copy" class="btn btn-small">Copy</button>
+      </div>
+
+      <div id="solo-controls" class="solo-controls hidden">
+        <span id="solo-best" class="muted"></span>
+        <button id="btn-new-solo" class="btn btn-small">New Puzzle</button>
+      </div>
+    </section>
+
+    <!-- RESULT MODAL -------------------------------------------------------->
+    <div id="result-modal" class="modal hidden">
+      <div class="modal-card">
+        <h2 id="result-title">Solved!</h2>
+        <p id="result-message"></p>
+        <div class="modal-actions">
+          <button id="result-rematch" class="btn btn-primary">Rematch</button>
+          <button id="result-home" class="btn btn-ghost">Home</button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="src/main.js"></script>
+  </body>
+</html>
