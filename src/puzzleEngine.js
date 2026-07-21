@@ -388,6 +388,31 @@ export function isBoardComplete(grid, solution) {
 }
 
 /**
+ * Return every currently-filled cell that violates a rule, so the UI can mark
+ * conflicts persistently (not just a brief flash). A cell conflicts if, with
+ * itself temporarily cleared, its own symbol would be an illegal placement —
+ * this catches three-in-a-row (all three cells flag), a line holding more than
+ * three of a symbol (every surplus cell flags), and broken =/× clues (both
+ * cells flag). The unique solution has zero conflicts, so a correctly-solved
+ * board is never marked.
+ */
+export function findConflicts(grid, clues) {
+  const conflicts = [];
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      const sym = grid[r][c];
+      if (sym === EMPTY) continue;
+      grid[r][c] = EMPTY; // clear so the cell is judged against its neighbours
+      const bad =
+        !isValidPlacement(grid, r, c, sym) || !satisfiesClues(grid, clues, r, c, sym);
+      grid[r][c] = sym; // restore
+      if (bad) conflicts.push({ r, c });
+    }
+  }
+  return conflicts;
+}
+
+/**
  * Progress as a 0..1 fraction of cells that match the solution. Used for the
  * live opponent panel; comparing against the (unique) solution means only
  * genuinely-correct placements count toward the bar.

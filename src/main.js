@@ -7,7 +7,7 @@
 // ---------------------------------------------------------------------------
 
 import { GameSession } from './gameSession.js';
-import { createGame } from './puzzleEngine.js';
+import { createGame, findConflicts, EMPTY } from './puzzleEngine.js';
 import { renderBoard } from './boardRenderer.js';
 import * as ui from './ui.js';
 
@@ -114,6 +114,7 @@ async function startJoin(code) {
 /** Build a fresh session + board for `game` and show the game screen. */
 function beginGame(game) {
   finished = false;
+  fullHintShown = false;
   myFinishTime = null;
   canPlay = mode === 'solo'; // multiplayer unlocks once both are present
   session = new GameSession();
@@ -140,6 +141,7 @@ function handleMove(r, c) {
   if (!result.valid) board.flashInvalid(r, c);
   refreshSelf();
   refreshUndo();
+  refreshConflicts();
 
   if (mode !== 'solo') {
     mp.writeProgress(roomCode, myRole, session.getProgress()).catch(() => {});
@@ -155,6 +157,7 @@ function handleUndo() {
   board.update();
   refreshSelf();
   refreshUndo();
+  refreshConflicts();
   if (mode !== 'solo') {
     mp.writeProgress(roomCode, myRole, session.getProgress()).catch(() => {});
   }
@@ -163,6 +166,25 @@ function handleUndo() {
 /** Enable the Undo button only when there is a move to take back. */
 function refreshUndo() {
   document.getElementById('btn-undo').disabled = !session.canUndo();
+}
+
+// Whether the "board full but incorrect" hint currently occupies the status line.
+let fullHintShown = false;
+
+/**
+ * Persistently mark rule-violating cells, and — when the board is completely
+ * full but still not the solution — explain why it didn't count as solved.
+ */
+function refreshConflicts() {
+  board.showConflicts(findConflicts(session.grid, session.puzzle.clues));
+  const full = session.grid.every((row) => row.every((v) => v !== EMPTY));
+  if (full && !session.isSolved()) {
+    ui.setStatus('Board full, but not solved — fix the red cells & check the = / × clues.');
+    fullHintShown = true;
+  } else if (fullHintShown) {
+    ui.setStatus(''); // clear the hint once the player edits the board again
+    fullHintShown = false;
+  }
 }
 
 /** The local player just completed the board. */
