@@ -225,21 +225,77 @@ export function countSolutions(grid, clues = [], limitAt2 = 2) {
   return found;
 }
 
+// --- logic solver (no guessing) ---------------------------------------------
+
+/**
+ * Solve `grid` using ONLY forced moves — the deductions a human makes without
+ * guessing. Repeatedly scans every empty cell; if exactly one of {sun, moon} is
+ * legal there (respecting the no-3-in-a-row rule, the 3-per-line balance, and
+ * the clues), that symbol is forced and filled in. This captures the standard
+ * Tango techniques (adjacency forcing, line-balance completion, clue forcing).
+ * We loop until a full pass makes no progress.
+ *
+ * Returns { solved, contradiction }: `solved` is true only if pure logic filled
+ * the whole board. A puzzle that returns solved=true is guaranteed both unique
+ * AND reachable step-by-step without trial and error — i.e. genuinely fair.
+ */
+export function forcedSolve(startGrid, clues) {
+  const grid = cloneGrid(startGrid);
+  let progress = true;
+
+  while (progress) {
+    progress = false;
+    for (let r = 0; r < SIZE; r++) {
+      for (let c = 0; c < SIZE; c++) {
+        if (grid[r][c] !== EMPTY) continue;
+        const canSun =
+          isValidPlacement(grid, r, c, SUN) && satisfiesClues(grid, clues, r, c, SUN);
+        const canMoon =
+          isValidPlacement(grid, r, c, MOON) && satisfiesClues(grid, clues, r, c, MOON);
+
+        if (!canSun && !canMoon) return { solved: false, contradiction: true };
+        if (canSun !== canMoon) {
+          grid[r][c] = canSun ? SUN : MOON; // only one option — forced move
+          progress = true;
+        }
+      }
+    }
+  }
+
+  let solved = true;
+  for (let r = 0; r < SIZE && solved; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      if (grid[r][c] === EMPTY) {
+        solved = false;
+        break;
+      }
+    }
+  }
+  return { solved, contradiction: false };
+}
+
+/** True if the puzzle can be solved by pure deduction (no guessing needed). */
+export function isLogicSolvable(grid, clues) {
+  return forcedSolve(grid, clues).solved;
+}
+
 // --- puzzle carving (Phase C) -----------------------------------------------
 
 /**
  * Turn a full `solution` (+ its `clues`) into a playable puzzle by removing
- * cells while keeping the solution unique.
+ * cells while keeping it solvable by PURE LOGIC (no guessing).
  *
  * We shuffle all 36 positions and greedily try to clear each one: tentatively
- * empty it, then count solutions of the resulting partial grid. If more than
- * one solution exists the cell was load-bearing, so we put it back; otherwise
- * we leave it empty. Whatever remains filled at the end is the set of givens.
- * Shuffling the order makes each carve (and thus each puzzle) different.
+ * empty it, then check whether the remaining partial grid is still logic-solvable
+ * (forcedSolve). If clearing the cell would force the player to guess, we put it
+ * back (it's a required given); otherwise we leave it empty. Requiring
+ * logic-solvability is strictly stronger than requiring a unique solution — it
+ * guarantees the player can always reach the answer by deduction, which is what
+ * makes the puzzle feel fair rather than "unsolvable". Shuffling the order makes
+ * each carve (and thus each puzzle) different.
  *
- * The difficulty knob is `minGivens`: removing every removable cell yields the
- * hardest (sparsest) board, so we stop clearing once we are down to roughly
- * `minGivens` cells. Fewer givens = harder; more = easier.
+ * The difficulty knob is `minGivens`: we stop clearing once we are down to
+ * roughly `minGivens` cells. Fewer givens = harder (more deduction steps).
  */
 export function makePuzzle(solution, clues, minGivens = 10) {
   const grid = cloneGrid(solution);
@@ -252,8 +308,8 @@ export function makePuzzle(solution, clues, minGivens = 10) {
     if (filled <= minGivens) break; // reached the target density — stop carving
     const saved = grid[r][c];
     grid[r][c] = EMPTY;
-    if (countSolutions(grid, clues, 2) !== 1) {
-      grid[r][c] = saved; // required given — uniqueness would break without it
+    if (!isLogicSolvable(grid, clues)) {
+      grid[r][c] = saved; // required given — without it the player would have to guess
     } else {
       filled--;
     }
