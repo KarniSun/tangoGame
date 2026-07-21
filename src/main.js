@@ -20,6 +20,9 @@ const DIFFICULTY = {
   easy: { minGivens: 16, clueCount: 5 },
   medium: { minGivens: 11, clueCount: 5 },
   hard: { minGivens: 6, clueCount: 5 },
+  // Expert samples many candidates and keeps the one needing the deepest chain
+  // of forced moves — far harder than hard, still fully logic-solvable.
+  expert: { minGivens: 0, clueCount: 4, sampleBest: 80 },
 };
 let difficulty = 'medium'; // current home-screen selection
 let activeDifficulty = 'medium'; // difficulty of the game currently being played

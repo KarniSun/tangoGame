@@ -242,6 +242,7 @@ export function countSolutions(grid, clues = [], limitAt2 = 2) {
 export function forcedSolve(startGrid, clues) {
   const grid = cloneGrid(startGrid);
   let progress = true;
+  let passes = 0; // number of deduction "waves"; a proxy for how deep the chains run
 
   while (progress) {
     progress = false;
@@ -253,13 +254,14 @@ export function forcedSolve(startGrid, clues) {
         const canMoon =
           isValidPlacement(grid, r, c, MOON) && satisfiesClues(grid, clues, r, c, MOON);
 
-        if (!canSun && !canMoon) return { solved: false, contradiction: true };
+        if (!canSun && !canMoon) return { solved: false, contradiction: true, passes };
         if (canSun !== canMoon) {
           grid[r][c] = canSun ? SUN : MOON; // only one option — forced move
           progress = true;
         }
       }
     }
+    if (progress) passes++;
   }
 
   let solved = true;
@@ -271,7 +273,7 @@ export function forcedSolve(startGrid, clues) {
       }
     }
   }
-  return { solved, contradiction: false };
+  return { solved, contradiction: false, passes };
 }
 
 /** True if the puzzle can be solved by pure deduction (no guessing needed). */
@@ -324,17 +326,41 @@ export function makePuzzle(solution, clues, minGivens = 10) {
   return { givens, clues };
 }
 
-/**
- * Full pipeline: generate a solved grid, attach clues, and carve a puzzle with
- * a unique solution. Returns everything a game needs: the immutable solution
- * and the puzzle (givens + clues). This is the single entry point both solo and
- * multiplayer modes call to create a game.
- */
-export function createGame({ clueCount = 5, minGivens = 10 } = {}) {
+/** Generate one carved puzzle + its solution. */
+function carveOne(clueCount, minGivens) {
   const solution = generateSolution();
   const clues = addClues(solution, clueCount);
   const puzzle = makePuzzle(solution, clues, minGivens);
   return { solution, puzzle };
+}
+
+/**
+ * Full pipeline: generate a solved grid, attach clues, and carve a puzzle. Every
+ * result is guaranteed solvable by pure logic (see makePuzzle).
+ *
+ * `sampleBest` enables difficulty-targeted rejection sampling: generate that
+ * many candidate puzzles and keep the hardest one, scored by deduction depth
+ * (forcedSolve passes — how many waves of forced moves the solve takes), with
+ * fewer givens as a tie-breaker. Generation is ~0.5ms, so sampling dozens is
+ * cheap. This is how the "Expert" tier gets its bite: not just few givens, but
+ * boards that demand long chains of reasoning.
+ */
+export function createGame({ clueCount = 5, minGivens = 10, sampleBest = 1 } = {}) {
+  if (sampleBest <= 1) return carveOne(clueCount, minGivens);
+
+  let best = null;
+  let bestScore = -Infinity;
+  for (let i = 0; i < sampleBest; i++) {
+    const candidate = carveOne(clueCount, minGivens);
+    const { passes } = forcedSolve(gridFromPuzzle(candidate.puzzle), candidate.puzzle.clues);
+    // Reward deduction depth first, then sparser boards.
+    const score = passes * 100 - candidate.puzzle.givens.length;
+    if (score > bestScore) {
+      bestScore = score;
+      best = candidate;
+    }
+  }
+  return best;
 }
 
 // --- completion / progress helpers ------------------------------------------

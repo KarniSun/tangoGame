@@ -91,14 +91,15 @@ body {
 }
 .diff-btn {
   flex: 1;
+  min-width: 0;
   font: inherit;
   font-weight: 700;
-  font-size: 0.9rem;
+  font-size: 0.82rem;
   border: none;
   background: transparent;
   color: var(--muted);
   border-radius: 999px;
-  padding: 8px 0;
+  padding: 8px 2px;
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
 }
@@ -255,6 +256,9 @@ body {
 }
 .diff-badge.diff-hard {
   background: #cc4b4b;
+}
+.diff-badge.diff-expert {
+  background: #6b2fb3;
 }
 .muted {
   color: var(--muted);
