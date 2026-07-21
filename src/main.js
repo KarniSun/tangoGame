@@ -23,6 +23,10 @@ const DIFFICULTY = {
   // Expert samples many candidates and keeps the one needing the deepest chain
   // of forced moves — far harder than hard, still fully logic-solvable.
   expert: { minGivens: 0, clueCount: 4, sampleBest: 80 },
+  // Master uses depth-1 contradiction reasoning: every board REQUIRES
+  // "assume-and-refute" logic (simple elimination alone stalls) — still fair,
+  // never guessing.
+  master: { minGivens: 0, clueCount: 3, sampleBest: 30, depth: 1 },
 };
 let difficulty = 'medium'; // current home-screen selection
 let activeDifficulty = 'medium'; // difficulty of the game currently being played

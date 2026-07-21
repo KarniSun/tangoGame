@@ -239,13 +239,15 @@ export function countSolutions(grid, clues = [], limitAt2 = 2) {
  * the whole board. A puzzle that returns solved=true is guaranteed both unique
  * AND reachable step-by-step without trial and error — i.e. genuinely fair.
  */
-export function forcedSolve(startGrid, clues) {
+export function forcedSolve(startGrid, clues, depth = 0) {
   const grid = cloneGrid(startGrid);
   let progress = true;
   let passes = 0; // number of deduction "waves"; a proxy for how deep the chains run
 
   while (progress) {
     progress = false;
+
+    // Level 1: single-cell forcing — fill any cell with only one legal symbol.
     for (let r = 0; r < SIZE; r++) {
       for (let c = 0; c < SIZE; c++) {
         if (grid[r][c] !== EMPTY) continue;
@@ -261,6 +263,31 @@ export function forcedSolve(startGrid, clues) {
         }
       }
     }
+
+    // Level 2+: contradiction reasoning. Only invoked when simple forcing stalls
+    // (and depth budget remains). For an empty cell, hypothesise a symbol and
+    // propagate with a shallower solver; if that leads to a contradiction, the
+    // OTHER symbol is proven — this is provable deduction, not guessing.
+    if (!progress && depth > 0) {
+      outer: for (let r = 0; r < SIZE; r++) {
+        for (let c = 0; c < SIZE; c++) {
+          if (grid[r][c] !== EMPTY) continue;
+          for (const sym of [SUN, MOON]) {
+            if (!isValidPlacement(grid, r, c, sym) || !satisfiesClues(grid, clues, r, c, sym)) {
+              continue; // already impossible by level-1 checks
+            }
+            const test = cloneGrid(grid);
+            test[r][c] = sym;
+            if (forcedSolve(test, clues, depth - 1).contradiction) {
+              grid[r][c] = sym === SUN ? MOON : SUN; // sym disproven → other is forced
+              progress = true;
+              break outer;
+            }
+          }
+        }
+      }
+    }
+
     if (progress) passes++;
   }
 
@@ -276,9 +303,14 @@ export function forcedSolve(startGrid, clues) {
   return { solved, contradiction: false, passes };
 }
 
-/** True if the puzzle can be solved by pure deduction (no guessing needed). */
-export function isLogicSolvable(grid, clues) {
-  return forcedSolve(grid, clues).solved;
+/**
+ * True if the puzzle is solvable by pure deduction (no blind guessing). `depth`
+ * controls how much contradiction reasoning is allowed: 0 = only direct
+ * single-cell forcing (Easy…Expert); higher depths certify harder boards that
+ * require "assume-and-refute" chains (the Master tier).
+ */
+export function isLogicSolvable(grid, clues, depth = 0) {
+  return forcedSolve(grid, clues, depth).solved;
 }
 
 // --- puzzle carving (Phase C) -----------------------------------------------
@@ -299,7 +331,7 @@ export function isLogicSolvable(grid, clues) {
  * The difficulty knob is `minGivens`: we stop clearing once we are down to
  * roughly `minGivens` cells. Fewer givens = harder (more deduction steps).
  */
-export function makePuzzle(solution, clues, minGivens = 10) {
+export function makePuzzle(solution, clues, minGivens = 10, depth = 0) {
   const grid = cloneGrid(solution);
   const positions = shuffled(
     Array.from({ length: SIZE * SIZE }, (_, i) => [Math.floor(i / SIZE), i % SIZE])
@@ -310,7 +342,7 @@ export function makePuzzle(solution, clues, minGivens = 10) {
     if (filled <= minGivens) break; // reached the target density — stop carving
     const saved = grid[r][c];
     grid[r][c] = EMPTY;
-    if (!isLogicSolvable(grid, clues)) {
+    if (!isLogicSolvable(grid, clues, depth)) {
       grid[r][c] = saved; // required given — without it the player would have to guess
     } else {
       filled--;
@@ -327,10 +359,10 @@ export function makePuzzle(solution, clues, minGivens = 10) {
 }
 
 /** Generate one carved puzzle + its solution. */
-function carveOne(clueCount, minGivens) {
+function carveOne(clueCount, minGivens, depth) {
   const solution = generateSolution();
   const clues = addClues(solution, clueCount);
-  const puzzle = makePuzzle(solution, clues, minGivens);
+  const puzzle = makePuzzle(solution, clues, minGivens, depth);
   return { solution, puzzle };
 }
 
@@ -345,14 +377,18 @@ function carveOne(clueCount, minGivens) {
  * cheap. This is how the "Expert" tier gets its bite: not just few givens, but
  * boards that demand long chains of reasoning.
  */
-export function createGame({ clueCount = 5, minGivens = 10, sampleBest = 1 } = {}) {
-  if (sampleBest <= 1) return carveOne(clueCount, minGivens);
+export function createGame({ clueCount = 5, minGivens = 10, sampleBest = 1, depth = 0 } = {}) {
+  if (sampleBest <= 1) return carveOne(clueCount, minGivens, depth);
 
   let best = null;
   let bestScore = -Infinity;
   for (let i = 0; i < sampleBest; i++) {
-    const candidate = carveOne(clueCount, minGivens);
-    const { passes } = forcedSolve(gridFromPuzzle(candidate.puzzle), candidate.puzzle.clues);
+    const candidate = carveOne(clueCount, minGivens, depth);
+    const { passes } = forcedSolve(
+      gridFromPuzzle(candidate.puzzle),
+      candidate.puzzle.clues,
+      depth
+    );
     // Reward deduction depth first, then sparser boards.
     const score = passes * 100 - candidate.puzzle.givens.length;
     if (score > bestScore) {
