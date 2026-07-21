@@ -20,13 +20,10 @@ const DIFFICULTY = {
   easy: { minGivens: 16, clueCount: 5 },
   medium: { minGivens: 11, clueCount: 5 },
   hard: { minGivens: 6, clueCount: 5 },
-  // Expert samples many candidates and keeps the one needing the deepest chain
-  // of forced moves — far harder than hard, still fully logic-solvable.
-  expert: { minGivens: 0, clueCount: 4, sampleBest: 80 },
-  // Master uses depth-1 contradiction reasoning: every board REQUIRES
+  // Expert uses depth-1 contradiction reasoning: every board REQUIRES
   // "assume-and-refute" logic (simple elimination alone stalls) — still fair,
   // never guessing.
-  master: { minGivens: 0, clueCount: 3, sampleBest: 30, depth: 1 },
+  expert: { minGivens: 0, clueCount: 3, sampleBest: 30, depth: 1 },
 };
 let difficulty = 'medium'; // current home-screen selection
 let activeDifficulty = 'medium'; // difficulty of the game currently being played
@@ -167,9 +164,24 @@ function handleUndo() {
   }
 }
 
-/** Enable the Undo button only when there is a move to take back. */
+/** Clear all the player's moves back to the initial puzzle, and sync progress. */
+function handleReset() {
+  if (finished || !canPlay || !session.canUndo()) return;
+  session.reset();
+  board.update();
+  refreshSelf();
+  refreshUndo();
+  refreshConflicts();
+  if (mode !== 'solo') {
+    mp.writeProgress(roomCode, myRole, session.getProgress()).catch(() => {});
+  }
+}
+
+/** Enable Undo/Reset only when there is at least one move to take back. */
 function refreshUndo() {
-  document.getElementById('btn-undo').disabled = !session.canUndo();
+  const disabled = !session.canUndo();
+  document.getElementById('btn-undo').disabled = disabled;
+  document.getElementById('btn-reset').disabled = disabled;
 }
 
 // Whether the "board full but incorrect" hint currently occupies the status line.
@@ -375,6 +387,7 @@ function failToHome(err) {
 function setupGameControls() {
   document.getElementById('btn-leave').addEventListener('click', goHome);
   document.getElementById('btn-undo').addEventListener('click', handleUndo);
+  document.getElementById('btn-reset').addEventListener('click', handleReset);
   document.getElementById('btn-new-solo').addEventListener('click', () => {
     ui.hideResult();
     startSolo();

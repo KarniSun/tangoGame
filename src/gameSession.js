@@ -105,6 +105,17 @@ export class GameSession {
     return this.history.length > 0;
   }
 
+  /**
+   * Clear all of the player's own moves, restoring the board to the initial
+   * puzzle (givens only). The timer keeps running — resetting is "start the
+   * board over", not "reset the clock" — so it stays fair in a timed race.
+   */
+  reset() {
+    this.grid = gridFromPuzzle(this.puzzle);
+    this.history = [];
+    this.finishedAt = null;
+  }
+
   /** The board is solved the instant it matches the unique stored solution. */
   isSolved() {
     return !!this.solution && isBoardComplete(this.grid, this.solution);
