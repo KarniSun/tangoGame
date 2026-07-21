@@ -223,11 +223,38 @@ body {
 .progress-fill.opp {
   background: var(--moon);
 }
+.status-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 1.6em;
+}
 .status {
-  min-height: 1.2em;
   margin: 0;
   color: var(--muted);
   font-weight: 600;
+}
+.diff-badge {
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--muted);
+  white-space: nowrap;
+}
+.diff-badge.diff-easy {
+  background: #4c9a5b;
+}
+.diff-badge.diff-medium {
+  background: #c98a2b;
+}
+.diff-badge.diff-hard {
+  background: #cc4b4b;
 }
 .muted {
   color: var(--muted);

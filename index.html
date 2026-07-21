@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
     <title>Tango Duel</title>
-    <link rel="stylesheet" href="style.css?v=3" />
+    <link rel="stylesheet" href="style.css?v=4" />
   </head>
   <body>
     <!-- HOME ---------------------------------------------------------------->
@@ -57,7 +57,10 @@
         <button id="btn-leave" class="btn btn-small btn-ghost">Leave</button>
       </header>
 
-      <p id="status" class="status"></p>
+      <div class="status-row">
+        <span id="difficulty-badge" class="diff-badge hidden"></span>
+        <p id="status" class="status"></p>
+      </div>
 
       <div id="board" class="board"></div>
 

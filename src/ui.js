@@ -83,6 +83,21 @@ export function setStatus(text) {
   $('status').textContent = text || '';
 }
 
+/**
+ * Show the difficulty badge (e.g. "Hard") for the current game, colour-coded by
+ * level. Passing a falsy value hides it. Shown in every mode so a joining player
+ * immediately sees the host's chosen difficulty.
+ */
+export function setDifficultyLabel(level) {
+  const badge = $('difficulty-badge');
+  if (!level) {
+    badge.classList.add('hidden');
+    return;
+  }
+  badge.textContent = level.charAt(0).toUpperCase() + level.slice(1);
+  badge.className = `diff-badge diff-${level}`; // reset then apply level colour
+}
+
 /** Show/refresh the solo personal-best label. */
 export function setBest(seconds) {
   $('solo-best').textContent = seconds != null ? `Best: ${formatTime(seconds)}` : '';

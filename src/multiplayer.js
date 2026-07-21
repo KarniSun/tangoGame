@@ -62,11 +62,12 @@ function newPlayer() {
  * slots. The room `shape` mirrors the brief:
  *   { puzzle, solution, createdAt, player1, player2 }.
  */
-export async function createRoom(code, game) {
+export async function createRoom(code, game, difficulty) {
   const ref = await roomRef(code);
   await rtdb.set(ref, {
     puzzle: game.puzzle,
     solution: game.solution,
+    difficulty, // baked in so the joining player sees the host's choice
     createdAt: rtdb.serverTimestamp(),
     player1: newPlayer(),
     player2: { progress: 0, finishTime: null, present: false },
@@ -89,6 +90,7 @@ export async function joinRoom(code) {
   return {
     role: 'player2',
     game: { puzzle: data.puzzle, solution: data.solution },
+    difficulty: data.difficulty ?? null,
   };
 }
 
@@ -123,13 +125,14 @@ export async function subscribeRoom(code, callback) {
  * progress/finish while keeping their presence. Either client may call this;
  * the onValue subscription pushes the new board to both.
  */
-export async function writeRematch(code, game) {
+export async function writeRematch(code, game, difficulty) {
   const ref = await roomRef(code);
   const snap = await rtdb.get(ref);
   const prev = snap.val() || {};
   await rtdb.update(ref, {
     puzzle: game.puzzle,
     solution: game.solution,
+    difficulty,
     createdAt: rtdb.serverTimestamp(),
     player1: { progress: 0, finishTime: null, present: prev.player1?.present ?? true },
     player2: { progress: 0, finishTime: null, present: prev.player2?.present ?? true },

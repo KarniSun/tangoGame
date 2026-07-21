@@ -22,6 +22,7 @@ const DIFFICULTY = {
   hard: { minGivens: 6, clueCount: 5 },
 };
 let difficulty = 'medium'; // current home-screen selection
+let activeDifficulty = 'medium'; // difficulty of the game currently being played
 
 // Shared per-game runtime state. Rebuilt every time a game starts.
 let session = null;
@@ -57,6 +58,7 @@ if (roomParam) {
 
 function startSolo() {
   mode = 'solo';
+  activeDifficulty = difficulty;
   beginGame(createGame(DIFFICULTY[difficulty]));
   ui.configureGameChrome({ mode });
   ui.setBest(loadBest());
@@ -70,8 +72,9 @@ async function startCreate() {
   try {
     mp = await import('./multiplayer.js');
     roomCode = mp.generateRoomCode();
+    activeDifficulty = difficulty;
     const game = createGame(DIFFICULTY[difficulty]);
-    myRole = await mp.createRoom(roomCode, game);
+    myRole = await mp.createRoom(roomCode, game, difficulty);
 
     beginGame(game);
     ui.configureGameChrome({ mode });
@@ -90,8 +93,9 @@ async function startJoin(code) {
   try {
     mp = await import('./multiplayer.js');
     roomCode = code;
-    const { role, game } = await mp.joinRoom(code);
+    const { role, game, difficulty: diff } = await mp.joinRoom(code);
     myRole = role;
+    activeDifficulty = diff || 'medium';
 
     beginGame(game);
     ui.configureGameChrome({ mode });
@@ -115,6 +119,7 @@ function beginGame(game) {
 
   board = renderBoard(document.getElementById('board'), session, handleMove);
   ui.hideResult();
+  ui.setDifficultyLabel(activeDifficulty);
   ui.updateSelf(0, 0);
   ui.updateOpponent(null);
   refreshUndo();
@@ -238,7 +243,8 @@ function resolveMultiplayer(me, opp) {
 async function doRematch() {
   try {
     ui.hideResult();
-    await mp.writeRematch(roomCode, createGame(DIFFICULTY[difficulty]));
+    activeDifficulty = difficulty;
+    await mp.writeRematch(roomCode, createGame(DIFFICULTY[difficulty]), difficulty);
   } catch (err) {
     failToHome(err);
   }
@@ -249,6 +255,7 @@ let lastSolutionKey = null;
 function maybeReloadPuzzle(room) {
   const key = JSON.stringify(room.solution);
   if (lastSolutionKey && key !== lastSolutionKey) {
+    activeDifficulty = room.difficulty || 'medium';
     beginGame({ puzzle: room.puzzle, solution: room.solution });
     canPlay = false; // re-gate until presence re-confirmed by the next update
   }
