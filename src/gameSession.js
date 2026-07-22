@@ -13,6 +13,7 @@ import {
   EMPTY,
   SUN,
   MOON,
+  SIZE,
   createGame,
   cloneGrid,
   gridFromPuzzle,
@@ -114,6 +115,44 @@ export class GameSession {
     this.grid = gridFromPuzzle(this.puzzle);
     this.history = [];
     this.finishedAt = null;
+  }
+
+  /** First editable cell whose current symbol contradicts the solution, or null. */
+  firstWrongCell() {
+    for (let r = 0; r < SIZE; r++) {
+      for (let c = 0; c < SIZE; c++) {
+        if (isGiven(this.puzzle, r, c)) continue;
+        const v = this.grid[r][c];
+        if (v !== EMPTY && v !== this.solution[r][c]) return { r, c };
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Produce a hint. If any placed cell is wrong it's pointed out first (so the
+   * player can fix their own mistake); otherwise a random empty cell is filled
+   * with its correct symbol (recorded in history so Undo can take it back).
+   * Returns { type: 'wrong' | 'reveal', r, c } or null if there's nothing to do.
+   */
+  revealHint() {
+    const wrong = this.firstWrongCell();
+    if (wrong) return { type: 'wrong', ...wrong };
+
+    const empties = [];
+    for (let r = 0; r < SIZE; r++) {
+      for (let c = 0; c < SIZE; c++) {
+        if (!isGiven(this.puzzle, r, c) && this.grid[r][c] === EMPTY) empties.push([r, c]);
+      }
+    }
+    if (!empties.length) return null;
+
+    const [r, c] = empties[Math.floor(Math.random() * empties.length)];
+    this.startTimer();
+    this.grid[r][c] = this.solution[r][c];
+    this.history.push({ r, c, from: EMPTY, to: this.solution[r][c] });
+    if (this.isSolved()) this.finishedAt = Date.now();
+    return { type: 'reveal', r, c };
   }
 
   /** The board is solved the instant it matches the unique stored solution. */

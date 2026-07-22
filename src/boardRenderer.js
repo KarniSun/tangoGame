@@ -108,6 +108,15 @@ export function renderBoard(container, session, onMove) {
     setTimeout(() => el.classList.remove('invalid'), 600);
   };
 
+  // Briefly pulse a cell to draw the eye to it (used by the Hint button).
+  const highlightHint = (r, c) => {
+    const el = cellEls[r][c];
+    el.classList.remove('hint');
+    void el.offsetWidth; // restart the animation
+    el.classList.add('hint');
+    setTimeout(() => el.classList.remove('hint'), 1300);
+  };
+
   update();
-  return { update, flashInvalid };
+  return { update, flashInvalid, highlightHint };
 }

@@ -45,6 +45,9 @@ let unsubscribe = null;
 let canPlay = false; // gated until both players are present
 let myFinishTime = null; // my elapsed seconds at solve, known before Firebase echoes it
 
+const HINT_COOLDOWN = 30; // seconds between hints
+let hintReadyAt = 0; // epoch ms when the Hint button becomes usable again
+
 // Party-only state.
 let myId = null; // this client's player id within the party
 let isHost = false;
@@ -488,6 +491,8 @@ function beginGame(game) {
   ui.updateSelf(0, 0);
   ui.updateOpponent(null);
   refreshUndo();
+  hintReadyAt = 0; // a fresh puzzle/round starts with a hint ready
+  refreshHint();
   ui.showScreen('game');
   startTicker();
 }
@@ -544,6 +549,40 @@ function refreshUndo() {
   const disabled = !session.canUndo();
   document.getElementById('btn-undo').disabled = disabled;
   document.getElementById('btn-reset').disabled = disabled;
+}
+
+/**
+ * Hint: point out a wrong cell first (so the player fixes their own mistake),
+ * otherwise reveal one correct cell. Then start the 30 s cooldown.
+ */
+function handleHint() {
+  if (finished || !canPlay || Date.now() < hintReadyAt) return;
+  const h = session.revealHint();
+  if (!h) return;
+  if (h.type === 'reveal') {
+    board.update();
+    refreshSelf();
+    refreshUndo();
+    refreshConflicts();
+    syncProgress();
+  }
+  board.highlightHint(h.r, h.c);
+  hintReadyAt = Date.now() + HINT_COOLDOWN * 1000;
+  refreshHint();
+  if (session.isSolved()) handleLocalSolve();
+}
+
+/** Update the Hint button's cooldown label / disabled state. */
+function refreshHint() {
+  const btn = document.getElementById('btn-hint');
+  const left = Math.ceil((hintReadyAt - Date.now()) / 1000);
+  if (left > 0) {
+    btn.disabled = true;
+    btn.textContent = `Hint ${left}s`;
+  } else {
+    btn.disabled = false;
+    btn.textContent = '💡 Hint';
+  }
 }
 
 // Whether the "board full but incorrect" hint currently occupies the status line.
@@ -702,6 +741,7 @@ function stopTicker() {
 }
 function tick() {
   refreshSelf();
+  refreshHint(); // count the hint cooldown down
   // Party countdown must advance between room events, so run it every tick.
   if (mode === 'party' && partyRoom && partyRoom.status === 'playing') {
     updatePartyCountdown(partyRoom);
@@ -769,6 +809,7 @@ function failToHome(err) {
 
 function setupGameControls() {
   document.getElementById('btn-leave').addEventListener('click', goHome);
+  document.getElementById('btn-hint').addEventListener('click', handleHint);
   document.getElementById('btn-undo').addEventListener('click', handleUndo);
   document.getElementById('btn-reset').addEventListener('click', handleReset);
   document.getElementById('btn-new-solo').addEventListener('click', () => {
