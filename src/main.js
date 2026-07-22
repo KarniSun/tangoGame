@@ -45,7 +45,8 @@ let unsubscribe = null;
 let canPlay = false; // gated until both players are present
 let myFinishTime = null; // my elapsed seconds at solve, known before Firebase echoes it
 
-const HINT_COOLDOWN = 30; // seconds between hints
+const HINT_INITIAL = 30; // seconds before the FIRST hint of a puzzle/round
+const HINT_COOLDOWN = 15; // seconds between hints afterwards
 let hintReadyAt = 0; // epoch ms when the Hint button becomes usable again
 
 // Party-only state.
@@ -491,7 +492,7 @@ function beginGame(game) {
   ui.updateSelf(0, 0);
   ui.updateOpponent(null);
   refreshUndo();
-  hintReadyAt = 0; // a fresh puzzle/round starts with a hint ready
+  hintReadyAt = Date.now() + HINT_INITIAL * 1000; // first hint unlocks after 30 s
   refreshHint();
   ui.showScreen('game');
   startTicker();
