@@ -13,6 +13,7 @@ import * as ui from './ui.js';
 
 const BEST_KEY = 'tango-best-time';
 const NAME_KEY = 'tango-name';
+const THEME_KEY = 'tango-theme'; // 'light' | 'dark' | absent (follow the system)
 
 // Difficulty presets fed into createGame(). Fewer givens = harder (more of the
 // board must be deduced). The host's choice is baked into the generated puzzle,
@@ -65,6 +66,7 @@ ui.setPlayerName(localStorage.getItem(NAME_KEY) || '');
 setupResultDismiss();
 setupGameControls();
 setupPartyControls();
+setupTheme();
 
 // A shared link (?room=ABCD) drops you straight into the join flow (auto-detects
 // whether the code is a 1v1 room or a party).
@@ -791,4 +793,35 @@ function setupResultDismiss() {
   document.getElementById('result-modal').addEventListener('click', (e) => {
     if (e.target.id === 'result-modal') ui.hideResult();
   });
+}
+
+// --- theme (light/dark toggle) ----------------------------------------------
+// No saved choice → follow the OS (via the prefers-color-scheme CSS). A saved
+// choice sets data-theme on <html>, which the stylesheet lets override the OS.
+
+function setupTheme() {
+  applyTheme(localStorage.getItem(THEME_KEY)); // null → follow system
+  document.getElementById('theme-toggle').addEventListener('click', () => {
+    const next = isDarkNow() ? 'light' : 'dark';
+    localStorage.setItem(THEME_KEY, next);
+    applyTheme(next);
+  });
+}
+
+function applyTheme(theme) {
+  const root = document.documentElement;
+  if (theme === 'light' || theme === 'dark') root.setAttribute('data-theme', theme);
+  else root.removeAttribute('data-theme');
+  updateThemeIcon();
+}
+
+function isDarkNow() {
+  const forced = document.documentElement.getAttribute('data-theme');
+  if (forced) return forced === 'dark';
+  return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
+
+function updateThemeIcon() {
+  // Show the action: a sun while dark (tap → light), a moon while light.
+  document.getElementById('theme-toggle').textContent = isDarkNow() ? '☀️' : '🌙';
 }

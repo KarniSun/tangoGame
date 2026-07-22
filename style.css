@@ -27,10 +27,11 @@
   --backdrop: rgba(28, 39, 51, 0.5); /* modal dim */
 }
 
-/* Dark theme: re-map the palette when the device is in dark mode. Sun/moon
+/* Dark palette. Applied when the device is in dark mode (unless the user forced
+   light) AND whenever the user explicitly picks dark via the toggle. Sun/moon
    icon colours stay the same (they read well on dark); everything else flips. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --cream: #14161b;
     --ink: #e6e4df;
     --line: #414a5a;
@@ -47,7 +48,30 @@
     --flash: #5f2c2f;
     --flash-given: #6d3437;
     --backdrop: rgba(0, 0, 0, 0.66);
+    color-scheme: dark;
   }
+}
+:root[data-theme='dark'] {
+  --cream: #14161b;
+  --ink: #e6e4df;
+  --line: #414a5a;
+  --given-bg: #2b313d;
+  --cell-bg: #20242e;
+  --accent: #464f60;
+  --muted: #8a92a1;
+  --surface: #262b35;
+  --border: #333a45;
+  --input-border: #3c4450;
+  --pill-bg: #1c1f27;
+  --track: #2a303b;
+  --clue-fg: #cfd4dd;
+  --flash: #5f2c2f;
+  --flash-given: #6d3437;
+  --backdrop: rgba(0, 0, 0, 0.66);
+  color-scheme: dark;
+}
+:root[data-theme='light'] {
+  color-scheme: light;
 }
 
 * {
@@ -462,6 +486,34 @@ body {
   display: none !important;
 }
 
+/* --- theme toggle (global, fixed corner) ----------------------------------- */
+
+.theme-toggle {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 30;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.theme-toggle:active {
+  transform: scale(0.94);
+}
+/* Keep it out of the way during a game (the top-left overlaps the You panel). */
+body:has(#screen-game.active) .theme-toggle {
+  display: none;
+}
+
 /* --- party: lobby ---------------------------------------------------------- */
 
 .lobby-card {
@@ -546,13 +598,24 @@ body {
   background: transparent;
   color: var(--muted);
   border-radius: 999px;
-  padding: 8px 2px;
+  padding: 9px 4px;
   cursor: pointer;
 }
 .seg-btn.active {
   background: var(--surface);
   color: var(--ink);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+/* The lobby difficulty control must fill the row like the seg controls (it
+   sits next to a fixed-width label), and its buttons match the seg sizing so
+   they aren't cramped or smaller than the rounds/countdown pickers. */
+.cfg-row .difficulty {
+  flex: 1;
+}
+.cfg-row .diff-btn {
+  font-size: 0.85rem;
+  padding: 9px 4px;
 }
 
 /* --- party: countdown banner ----------------------------------------------- */
