@@ -1,17 +1,53 @@
 /* style.css — clean, minimal, mobile-first, matching the LinkedIn Tango look. */
 
 :root {
-  --cream: #fbf7f1;
-  --ink: #1c2733;
-  --line: #2b3440;
-  --given-bg: #ece5d8;
-  --cell-bg: #ffffff;
+  color-scheme: light dark; /* declare both so mobile browsers don't force-invert */
+
+  --cream: #fbf7f1; /* app background */
+  --ink: #1c2733; /* primary text */
+  --line: #2b3440; /* grid lines + board border */
+  --given-bg: #ece5d8; /* pre-filled cell shade */
+  --cell-bg: #ffffff; /* empty cell */
   --sun: #f5c518;
   --moon: #3b82c4;
-  --accent: #2b3440;
+  --accent: #2b3440; /* primary button / borders */
   --danger: #e5484d;
   --muted: #8a8578;
   --radius: 14px;
+
+  /* surfaces / chrome (overridden wholesale for dark mode below) */
+  --surface: #ffffff; /* panels, buttons, inputs, clue badges, modal card */
+  --border: #e2dccf; /* hairline borders / dividers */
+  --input-border: #d8d1c2;
+  --pill-bg: #efe8db; /* difficulty segmented control track */
+  --track: #eee7da; /* progress-bar track */
+  --clue-fg: #2b3440; /* =/× badge text */
+  --flash: #f7c9ca; /* invalid-move flash on an empty cell */
+  --flash-given: #f0b9ba; /* invalid-move flash on a given cell */
+  --backdrop: rgba(28, 39, 51, 0.5); /* modal dim */
+}
+
+/* Dark theme: re-map the palette when the device is in dark mode. Sun/moon
+   icon colours stay the same (they read well on dark); everything else flips. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --cream: #14161b;
+    --ink: #e6e4df;
+    --line: #414a5a;
+    --given-bg: #2b313d;
+    --cell-bg: #20242e;
+    --accent: #464f60;
+    --muted: #8a92a1;
+    --surface: #262b35;
+    --border: #333a45;
+    --input-border: #3c4450;
+    --pill-bg: #1c1f27;
+    --track: #2a303b;
+    --clue-fg: #cfd4dd;
+    --flash: #5f2c2f;
+    --flash-given: #6d3437;
+    --backdrop: rgba(0, 0, 0, 0.66);
+  }
 }
 
 * {
@@ -85,7 +121,7 @@ body {
 .difficulty {
   display: flex;
   gap: 6px;
-  background: #efe8db;
+  background: var(--pill-bg);
   border-radius: 999px;
   padding: 4px;
 }
@@ -104,7 +140,7 @@ body {
   transition: background 0.15s ease, color 0.15s ease;
 }
 .diff-btn.active {
-  background: #fff;
+  background: var(--surface);
   color: var(--ink);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
 }
@@ -121,7 +157,7 @@ body {
   left: 0;
   right: 0;
   height: 1px;
-  background: #e2dccf;
+  background: var(--border);
 }
 .divider span {
   position: relative;
@@ -141,7 +177,7 @@ body {
   font: inherit;
   font-weight: 700;
   border: 2px solid var(--accent);
-  background: #fff;
+  background: var(--surface);
   color: var(--ink);
   border-radius: 999px;
   padding: 12px 18px;
@@ -165,8 +201,8 @@ body {
 }
 .input {
   font: inherit;
-  border: 2px solid #d8d1c2;
-  background: #fff;
+  border: 2px solid var(--input-border);
+  background: var(--surface);
   border-radius: 12px;
   padding: 12px 14px;
   color: var(--ink);
@@ -191,8 +227,8 @@ body {
 }
 .panel {
   flex: 1;
-  background: #fff;
-  border: 1.5px solid #e2dccf;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
   border-radius: var(--radius);
   padding: 10px 12px;
 }
@@ -210,7 +246,7 @@ body {
 }
 .progress {
   height: 6px;
-  background: #eee7da;
+  background: var(--track);
   border-radius: 999px;
   overflow: hidden;
   margin-top: 6px;
@@ -303,7 +339,7 @@ body {
     background: var(--cell-bg);
   }
   30% {
-    background: #f7c9ca;
+    background: var(--flash);
   }
 }
 .cell.given.invalid {
@@ -315,7 +351,7 @@ body {
     background: var(--given-bg);
   }
   30% {
-    background: #f0b9ba;
+    background: var(--flash-given);
   }
 }
 .symbol {
@@ -332,7 +368,7 @@ body {
   transform: translate(-50%, -50%);
   width: 20px;
   height: 20px;
-  background: #fff;
+  background: var(--surface);
   border: 1.5px solid var(--line);
   border-radius: 50%;
   display: flex;
@@ -340,7 +376,7 @@ body {
   justify-content: center;
   font-size: 13px;
   font-weight: 800;
-  color: var(--line);
+  color: var(--clue-fg);
   pointer-events: none;
   z-index: 2;
 }
@@ -353,8 +389,8 @@ body {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  background: #fff;
-  border: 1.5px solid #e2dccf;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
   border-radius: var(--radius);
   padding: 12px;
 }
@@ -391,7 +427,7 @@ body {
 .modal {
   position: fixed;
   inset: 0;
-  background: rgba(28, 39, 51, 0.5);
+  background: var(--backdrop);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -399,7 +435,7 @@ body {
   z-index: 10;
 }
 .modal-card {
-  background: var(--cream);
+  background: var(--surface);
   border-radius: 20px;
   padding: 28px 24px;
   text-align: center;
