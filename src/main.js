@@ -129,10 +129,26 @@ async function startJoin(code) {
 
 // --- party mode -------------------------------------------------------------
 
-/** Read the display name, defaulting sensibly, and remember it for next time. */
+const NAME_ADJ = ['Swift', 'Brave', 'Clever', 'Sunny', 'Lunar', 'Bright', 'Bold', 'Cosmic', 'Golden', 'Quiet'];
+const NAME_ANIMAL = ['Fox', 'Owl', 'Otter', 'Hawk', 'Panda', 'Wolf', 'Lynx', 'Crane', 'Koala', 'Raven'];
+
+/** A friendly random fallback name so nameless players stay distinguishable. */
+function randomName() {
+  const a = NAME_ADJ[Math.floor(Math.random() * NAME_ADJ.length)];
+  const b = NAME_ANIMAL[Math.floor(Math.random() * NAME_ANIMAL.length)];
+  return `${a} ${b}`;
+}
+
+/**
+ * Read the display name. If the field is empty we assign a friendly random name
+ * (e.g. "Swift Fox") rather than a shared "Player", so multiple nameless players
+ * don't collide on the leaderboard. The chosen name is remembered and shown back
+ * in the field for next time.
+ */
 function playerName() {
-  const n = ui.getPlayerName() || 'Player';
+  const n = ui.getPlayerName() || randomName();
   localStorage.setItem(NAME_KEY, n);
+  ui.setPlayerName(n);
   return n;
 }
 
