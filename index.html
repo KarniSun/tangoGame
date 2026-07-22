@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
     <title>Tango Duel</title>
-    <link rel="stylesheet" href="style.css?v=15" />
+    <link rel="stylesheet" href="style.css?v=16" />
   </head>
   <body>
     <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle dark mode">🌙</button>
@@ -141,6 +141,16 @@
         <button id="btn-undo" class="btn btn-small" disabled>↶ Undo</button>
         <button id="btn-reset" class="btn btn-small" disabled>⟲ Reset</button>
       </div>
+
+      <details id="rules" class="rules">
+        <summary>How to play</summary>
+        <ul class="rules-list">
+          <li>Fill every cell — tap to cycle empty → <strong>sun</strong> → <strong>moon</strong>.</li>
+          <li>Each row and column needs exactly <strong>3 suns and 3 moons</strong>.</li>
+          <li>No more than <strong>2 of the same</strong> touching in a line (no three in a row).</li>
+          <li>A <strong>=</strong> between two cells means they must match; a <strong>×</strong> means they must be opposite.</li>
+        </ul>
+      </details>
 
       <div id="share-box" class="share-box hidden">
         <label>Share this link with a friend:</label>

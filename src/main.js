@@ -14,6 +14,7 @@ import * as ui from './ui.js';
 const BEST_KEY = 'tango-best-time';
 const NAME_KEY = 'tango-name';
 const THEME_KEY = 'tango-theme'; // 'light' | 'dark' | absent (follow the system)
+const RULES_KEY = 'tango-rules-open';
 
 // Difficulty presets fed into createGame(). Fewer givens = harder (more of the
 // board must be deduced). The host's choice is baked into the generated puzzle,
@@ -71,6 +72,7 @@ setupResultDismiss();
 setupGameControls();
 setupPartyControls();
 setupTheme();
+setupRules();
 
 // A shared link (?room=ABCD) drops you straight into the join flow (auto-detects
 // whether the code is a 1v1 room or a party).
@@ -866,4 +868,14 @@ function isDarkNow() {
 function updateThemeIcon() {
   // Show the action: a sun while dark (tap → light), a moon while light.
   document.getElementById('theme-toggle').textContent = isDarkNow() ? '☀️' : '🌙';
+}
+
+// --- rules dropdown ---------------------------------------------------------
+// Open by default so newcomers see the rules without being told; once someone
+// closes it, that choice is remembered.
+
+function setupRules() {
+  const el = document.getElementById('rules');
+  el.open = localStorage.getItem(RULES_KEY) !== 'false';
+  el.addEventListener('toggle', () => localStorage.setItem(RULES_KEY, String(el.open)));
 }

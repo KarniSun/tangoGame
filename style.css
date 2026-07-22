@@ -455,6 +455,48 @@ body {
   justify-content: center;
   gap: 10px;
 }
+
+/* --- collapsible "how to play" rules --------------------------------------- */
+
+.rules {
+  width: 100%;
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  overflow: hidden;
+}
+.rules > summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  padding: 11px 14px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--ink);
+}
+.rules > summary::-webkit-details-marker {
+  display: none;
+}
+.rules > summary::after {
+  content: '▾';
+  margin-left: auto;
+  color: var(--muted);
+  transition: transform 0.2s ease;
+}
+.rules[open] > summary::after {
+  transform: rotate(180deg);
+}
+.rules-list {
+  margin: 0;
+  padding: 0 16px 12px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--ink);
+}
 .btn[disabled] {
   opacity: 0.4;
   cursor: default;
