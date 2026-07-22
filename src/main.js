@@ -12,6 +12,7 @@ import { renderBoard } from './boardRenderer.js';
 import * as ui from './ui.js';
 
 const BEST_KEY = 'tango-best-time';
+const NAME_KEY = 'tango-name';
 
 // Difficulty presets fed into createGame(). Fewer givens = harder (more of the
 // board must be deduced). The host's choice is baked into the generated puzzle,
@@ -43,17 +44,33 @@ let unsubscribe = null;
 let canPlay = false; // gated until both players are present
 let myFinishTime = null; // my elapsed seconds at solve, known before Firebase echoes it
 
+// Party-only state.
+let myId = null; // this client's player id within the party
+let isHost = false;
+let partyConfig = null; // { rounds, difficulty, graceSeconds }
+let partyRounds = []; // the shared array of round puzzles
+let myRound = 0; // index of the round I'm currently on
+let myRoundTimes = []; // my per-round solve times
+let partyRoom = null; // latest room snapshot (for the countdown ticker)
+let partyStarted = false; // have I entered round 0 of the current game?
+let partyPrevStatus = null; // to detect finished→playing (play again)
+let partyFinalShown = false;
+let finishRequested = false; // guard so finishParty is only fired once per game
+
 // --- boot -------------------------------------------------------------------
 
-ui.setupHome({ onSolo: startSolo, onCreate: startCreate, onJoin: startJoin });
+ui.setupHome({ onSolo: startSolo, onCreate: startCreate, onParty: startCreateParty, onJoin: routeJoin });
 ui.setupDifficulty((level) => (difficulty = level));
+ui.setPlayerName(localStorage.getItem(NAME_KEY) || '');
 setupResultDismiss();
 setupGameControls();
+setupPartyControls();
 
-// A shared link (?room=ABCD) drops you straight into the join flow.
+// A shared link (?room=ABCD) drops you straight into the join flow (auto-detects
+// whether the code is a 1v1 room or a party).
 const roomParam = new URLSearchParams(location.search).get('room');
 if (roomParam) {
-  startJoin(roomParam.toUpperCase());
+  routeJoin(roomParam.toUpperCase());
 } else {
   ui.showScreen('home');
 }
@@ -110,6 +127,331 @@ async function startJoin(code) {
   }
 }
 
+// --- party mode -------------------------------------------------------------
+
+/** Read the display name, defaulting sensibly, and remember it for next time. */
+function playerName() {
+  const n = ui.getPlayerName() || 'Player';
+  localStorage.setItem(NAME_KEY, n);
+  return n;
+}
+
+function partyLink() {
+  return `${location.origin}${location.pathname}?room=${roomCode}`;
+}
+
+/** Wire the lobby controls, the host "End game" button, and party dismissals. */
+function setupPartyControls() {
+  ui.setupLobbyControls({
+    onRounds: (n) => hostSetConfig({ rounds: n }),
+    onDifficulty: (d) => hostSetConfig({ difficulty: d }),
+    onGrace: (g) => hostSetConfig({ graceSeconds: g }),
+    onStart: hostStartParty,
+    onLeave: goHome,
+    onCopy: copyPartyLink,
+  });
+  document.getElementById('btn-end-game').addEventListener('click', () => {
+    if (isHost) mp.finishParty(roomCode).catch(() => {});
+  });
+  document.getElementById('leaderboard-home').addEventListener('click', goHome);
+}
+
+async function copyPartyLink() {
+  try {
+    await navigator.clipboard.writeText(partyLink());
+    const btn = document.getElementById('btn-lobby-copy');
+    btn.textContent = 'Copied!';
+    setTimeout(() => (btn.textContent = 'Copy link'), 1500);
+  } catch {
+    /* clipboard blocked — ignore */
+  }
+}
+
+/** Host: push a config change to the room (guests see it live). */
+function hostSetConfig(patch) {
+  if (isHost && roomCode) mp.updatePartyConfig(roomCode, patch).catch(() => {});
+}
+
+/** Create a party and enter its lobby as host. */
+async function startCreateParty() {
+  mode = 'party';
+  try {
+    mp = await import('./multiplayer.js');
+    const name = playerName();
+    roomCode = mp.generateRoomCode();
+    myId = mp.generatePlayerId();
+    isHost = true;
+    const config = { rounds: 3, difficulty, graceSeconds: 60 };
+    await mp.createParty(roomCode, { hostId: myId, name, config });
+    enterLobby();
+    await watchRoom();
+  } catch (err) {
+    failToHome(err);
+  }
+}
+
+/** Join a party's lobby. */
+async function joinPartyFlow(code) {
+  mode = 'party';
+  try {
+    mp = await import('./multiplayer.js');
+    const name = playerName();
+    roomCode = code;
+    myId = mp.generatePlayerId();
+    isHost = false;
+    await mp.joinParty(code, { playerId: myId, name });
+    enterLobby();
+    await watchRoom();
+  } catch (err) {
+    failToHome(err);
+  }
+}
+
+/** Route a typed/shared code to the right flow by peeking at the room's mode. */
+async function routeJoin(code) {
+  try {
+    mp = await import('./multiplayer.js');
+    const info = await mp.peekRoom(code);
+    if (!info.exists) throw new Error(`Room "${code}" not found.`);
+    if (info.mode === 'party') {
+      if (info.status !== 'lobby') throw new Error('That game has already started.');
+      await joinPartyFlow(code);
+    } else {
+      await startJoin(code);
+    }
+  } catch (err) {
+    failToHome(err);
+  }
+}
+
+function enterLobby() {
+  partyStarted = false;
+  partyFinalShown = false;
+  partyPrevStatus = null;
+  finishRequested = false;
+  myRound = 0;
+  myRoundTimes = [];
+  stopTicker();
+  ui.hideLeaderboard();
+  ui.hideResult();
+  ui.hideCountdown();
+  ui.showScreen('lobby');
+}
+
+/** Host generates the round puzzles and starts the game for everyone. */
+async function hostStartParty() {
+  if (!isHost) return;
+  const cfg = (partyRoom && partyRoom.config) || { rounds: 3, difficulty: 'medium', graceSeconds: 60 };
+  const btn = document.getElementById('btn-start-party');
+  btn.disabled = true;
+  btn.textContent = 'Generating…';
+  try {
+    await new Promise((r) => setTimeout(r, 20)); // let the label paint first
+    const rounds = Array.from({ length: cfg.rounds }, () => createGame(DIFFICULTY[cfg.difficulty]));
+    await mp.startParty(roomCode, rounds);
+  } catch (err) {
+    failToHome(err);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Start game';
+  }
+}
+
+/** The single party subscription handler: lobby → playing → finished. */
+function onPartyRoomUpdate(room) {
+  partyRoom = room;
+  isHost = room.hostId === myId;
+
+  if (room.status === 'lobby') {
+    maybeMigrateHost(room);
+    const players = presentSortedByJoin(room).map(([id, p]) => ({
+      name: p.name,
+      isMe: id === myId,
+      isHost: id === room.hostId,
+    }));
+    ui.renderLobby({ code: roomCode, players, config: room.config || {}, isHost });
+    ui.showScreen('lobby');
+  } else if (room.status === 'playing') {
+    if (partyPrevStatus !== 'playing') partyStarted = false; // (re)start / play-again
+    if (!partyStarted) {
+      partyStarted = true;
+      partyFinalShown = false;
+      finishRequested = false;
+      partyRounds = room.rounds || [];
+      partyConfig = room.config || {};
+      activeDifficulty = partyConfig.difficulty || 'medium';
+      myRound = 0;
+      myRoundTimes = [];
+      ui.hideLeaderboard();
+      startPartyRound(0);
+    }
+    ui.renderLiveStandings(buildRows(room, 'live'));
+    updatePartyCountdown(room);
+  } else if (room.status === 'finished') {
+    showPartyFinal(room);
+  }
+
+  partyPrevStatus = room.status;
+}
+
+/** Present players, earliest-joined first. */
+function presentSortedByJoin(room) {
+  return Object.entries(room.players || {})
+    .filter(([, p]) => p.present !== false)
+    .sort((a, b) => (a[1].joinedAt || 0) - (b[1].joinedAt || 0));
+}
+
+/** If the host has left the lobby, the earliest-joined present player claims it. */
+function maybeMigrateHost(room) {
+  const host = (room.players || {})[room.hostId];
+  if (host && host.present !== false) return;
+  const present = presentSortedByJoin(room);
+  if (present.length && present[0][0] === myId) {
+    mp.claimHost(roomCode, myId, room.hostId).catch(() => {});
+  }
+}
+
+/** Start (or instantly advance to) round k of the party. */
+function startPartyRound(k) {
+  myRound = k;
+  beginGame(partyRounds[k]); // renders the board + shows the game screen
+  session.startTimer();
+  canPlay = true;
+  ui.configureGameChrome({ mode: 'party', isHost });
+  ui.setStatus(`Round ${k + 1} of ${partyRounds.length}`);
+  if (k > 0) ui.flashRoundToast(`Round ${k + 1}/${partyRounds.length}`);
+}
+
+/** I solved my current round: record it and either advance or finish. */
+function handlePartySolve() {
+  myRoundTimes = [...myRoundTimes, session.getElapsedTime()];
+  myRound += 1;
+  canPlay = false;
+  const N = partyRounds.length;
+
+  if (myRound < N) {
+    mp.writePlayerState(roomCode, myId, {
+      currentRound: myRound,
+      roundTimes: myRoundTimes,
+    }).catch(() => {});
+    startPartyRound(myRound); // instant next round
+  } else {
+    const total = myRoundTimes.reduce((a, b) => a + b, 0);
+    mp.writePlayerState(roomCode, myId, {
+      currentRound: N,
+      roundTimes: myRoundTimes,
+      done: true,
+      totalTime: total,
+    }).catch(() => {});
+    mp.armFinishDeadline(roomCode, (partyConfig && partyConfig.graceSeconds) || 60).catch(() => {});
+    ui.setStatus(`You finished! Total ${fmtTotal(total)} — waiting for others…`);
+  }
+}
+
+/** Drive the global countdown from the shared deadline; end the game once due. */
+function updatePartyCountdown(room) {
+  const done = allPresentDone(room);
+  if (room.finishDeadline) {
+    const left = (room.finishDeadline - Date.now()) / 1000;
+    ui.showCountdown(left);
+    if ((left <= 0 || done) && !finishRequested) {
+      finishRequested = true;
+      mp.finishParty(roomCode).catch(() => {});
+    }
+  } else {
+    ui.hideCountdown();
+    if (done && !finishRequested) {
+      finishRequested = true;
+      mp.finishParty(roomCode).catch(() => {});
+    }
+  }
+}
+
+function allPresentDone(room) {
+  const ps = Object.values(room.players || {}).filter((p) => p.present !== false);
+  return ps.length > 0 && ps.every((p) => p.done === true);
+}
+
+/** Build sorted leaderboard rows for the live strip ('live') or final board. */
+function buildRows(room, context) {
+  const N = partyRounds.length || (room.rounds ? room.rounds.length : room.config?.rounds) || 0;
+  const players = Object.entries(room.players || {}).map(([id, p]) => {
+    const times = p.roundTimes || [];
+    const sum = times.reduce((a, b) => a + (b || 0), 0);
+    return {
+      id,
+      name: p.name || 'Player',
+      present: p.present !== false,
+      done: !!p.done,
+      roundsDone: times.length,
+      sum,
+      progress: p.progress || 0,
+    };
+  });
+  players.sort(
+    (a, b) => b.roundsDone - a.roundsDone || a.sum - b.sum || b.progress - a.progress
+  );
+  return players.map((p, i) => {
+    let label;
+    let tone;
+    if (p.done) {
+      label = context === 'final' ? `${N}/${N}` : 'Done';
+      tone = 'done';
+    } else if (!p.present) {
+      label = 'left';
+      tone = 'left';
+    } else if (context === 'final') {
+      label = `${p.roundsDone}/${N}`; // didn't finish before the game closed
+      tone = 'left';
+    } else {
+      label = `R${Math.min(p.roundsDone + 1, N)}/${N}`;
+      tone = 'solving';
+    }
+    return {
+      rank: i + 1,
+      name: p.name,
+      label,
+      tone,
+      time: p.roundsDone || p.done ? fmtTotal(p.sum) : '',
+      isMe: p.id === myId,
+    };
+  });
+}
+
+/** Format a total time: "42.3s" under a minute, "m:ss" over. */
+function fmtTotal(sec) {
+  if (sec == null) return '';
+  if (sec < 60) return `${sec.toFixed(1)}s`;
+  const m = Math.floor(sec / 60);
+  return `${m}:${String(Math.round(sec % 60)).padStart(2, '0')}`;
+}
+
+function showPartyFinal(room) {
+  canPlay = false;
+  stopTicker();
+  ui.hideCountdown();
+  ui.showLeaderboard({
+    title: 'Final results',
+    rows: buildRows(room, 'final'),
+    primaryLabel: 'Play again',
+    onPrimary: isHost ? partyPlayAgainAction : null,
+    onHome: goHome,
+  });
+  partyFinalShown = true;
+}
+
+async function partyPlayAgainAction() {
+  if (!isHost) return;
+  try {
+    ui.hideLeaderboard();
+    const cfg = (partyRoom && partyRoom.config) || partyConfig;
+    const rounds = Array.from({ length: cfg.rounds }, () => createGame(DIFFICULTY[cfg.difficulty]));
+    await mp.partyPlayAgain(roomCode, rounds);
+  } catch (err) {
+    failToHome(err);
+  }
+}
+
 // --- shared game setup ------------------------------------------------------
 
 /** Build a fresh session + board for `game` and show the game screen. */
@@ -143,11 +485,17 @@ function handleMove(r, c) {
   refreshSelf();
   refreshUndo();
   refreshConflicts();
-
-  if (mode !== 'solo') {
-    mp.writeProgress(roomCode, myRole, session.getProgress()).catch(() => {});
-  }
+  syncProgress();
   if (session.isSolved()) handleLocalSolve();
+}
+
+/** Push this client's progress to Firebase for the active multiplayer mode. */
+function syncProgress() {
+  if (mode === 'create' || mode === 'join') {
+    mp.writeProgress(roomCode, myRole, session.getProgress()).catch(() => {});
+  } else if (mode === 'party') {
+    mp.writePlayerState(roomCode, myId, { progress: session.getProgress() }).catch(() => {});
+  }
 }
 
 /** Undo the last move and sync the reverted progress in multiplayer. */
@@ -159,9 +507,7 @@ function handleUndo() {
   refreshSelf();
   refreshUndo();
   refreshConflicts();
-  if (mode !== 'solo') {
-    mp.writeProgress(roomCode, myRole, session.getProgress()).catch(() => {});
-  }
+  syncProgress();
 }
 
 /** Clear all the player's moves back to the initial puzzle, and sync progress. */
@@ -172,9 +518,7 @@ function handleReset() {
   refreshSelf();
   refreshUndo();
   refreshConflicts();
-  if (mode !== 'solo') {
-    mp.writeProgress(roomCode, myRole, session.getProgress()).catch(() => {});
-  }
+  syncProgress();
 }
 
 /** Enable Undo/Reset only when there is at least one move to take back. */
@@ -204,10 +548,13 @@ function refreshConflicts() {
 
 /** The local player just completed the board. */
 function handleLocalSolve() {
-  myFinishTime = session.getElapsedTime();
   if (mode === 'solo') {
+    myFinishTime = session.getElapsedTime();
     resolveSolo();
+  } else if (mode === 'party') {
+    handlePartySolve();
   } else {
+    myFinishTime = session.getElapsedTime();
     mp.writeFinish(roomCode, myRole, myFinishTime).catch(() => {});
     // Outcome is resolved in the room subscription so both finish times agree.
   }
@@ -216,7 +563,8 @@ function handleLocalSolve() {
 // --- multiplayer room watching ---------------------------------------------
 
 async function watchRoom() {
-  unsubscribe = await mp.subscribeRoom(roomCode, onRoomUpdate);
+  const handler = mode === 'party' ? onPartyRoomUpdate : onRoomUpdate;
+  unsubscribe = await mp.subscribeRoom(roomCode, handler);
 }
 
 /** React to every room change: opponent presence, progress, and finish times. */
@@ -328,14 +676,21 @@ function resolveSolo() {
 
 function startTicker() {
   stopTicker();
-  ticker = setInterval(refreshSelf, 100);
+  ticker = setInterval(tick, 100);
 }
 function stopTicker() {
   if (ticker) clearInterval(ticker);
   ticker = null;
 }
+function tick() {
+  refreshSelf();
+  // Party countdown must advance between room events, so run it every tick.
+  if (mode === 'party' && partyRoom && partyRoom.status === 'playing') {
+    updatePartyCountdown(partyRoom);
+  }
+}
 function refreshSelf() {
-  ui.updateSelf(session.getElapsedTime(), session.getProgress());
+  if (session) ui.updateSelf(session.getElapsedTime(), session.getProgress());
 }
 
 // --- personal best (solo, localStorage) ------------------------------------
@@ -356,13 +711,17 @@ function saveBestIfBetter(seconds) {
 // --- teardown / navigation --------------------------------------------------
 
 function goHome() {
-  // Tell the opponent we left before tearing down the subscription (best-effort).
-  if (mode !== 'solo' && mp && roomCode && myRole) {
+  // Tell others we left before tearing down the subscription (best-effort).
+  if ((mode === 'create' || mode === 'join') && mp && roomCode && myRole) {
     mp.leaveRoom(roomCode, myRole).catch(() => {});
+  } else if (mode === 'party' && mp && roomCode && myId) {
+    mp.leaveParty(roomCode, myId).catch(() => {});
   }
   cleanupRoom();
   stopTicker();
   ui.hideResult();
+  ui.hideLeaderboard();
+  ui.hideCountdown();
   ui.setStatus('');
   history.replaceState(null, '', location.pathname); // drop ?room from the URL
   ui.showScreen('home');
@@ -374,6 +733,13 @@ function cleanupRoom() {
   roomCode = null;
   myRole = null;
   lastSolutionKey = null;
+  myId = null;
+  isHost = false;
+  partyRoom = null;
+  partyStarted = false;
+  partyPrevStatus = null;
+  partyFinalShown = false;
+  finishRequested = false;
 }
 
 function failToHome(err) {

@@ -4,14 +4,22 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
     <title>Tango Duel</title>
-    <link rel="stylesheet" href="style.css?v=10" />
+    <link rel="stylesheet" href="style.css?v=11" />
   </head>
   <body>
     <!-- HOME ---------------------------------------------------------------->
     <section id="screen-home" class="screen active">
       <div class="home-card">
         <h1 class="logo">Tango<span>Duel</span></h1>
-        <p class="tagline">A 1v1 race to solve the same sun &amp; moon puzzle.</p>
+        <p class="tagline">Race friends to solve the same sun &amp; moon puzzle.</p>
+
+        <input
+          id="player-name"
+          class="input"
+          maxlength="12"
+          placeholder="Your name"
+          autocomplete="off"
+        />
 
         <div class="difficulty" role="group" aria-label="Difficulty">
           <button type="button" class="diff-btn" data-diff="easy">Easy</button>
@@ -20,7 +28,8 @@
           <button type="button" class="diff-btn" data-diff="expert">Expert</button>
         </div>
 
-        <button id="btn-create" class="btn btn-primary">Create Game</button>
+        <button id="btn-party" class="btn btn-primary">Create Party</button>
+        <button id="btn-create" class="btn">Create 1v1</button>
 
         <div class="join-row">
           <input
@@ -40,6 +49,55 @@
       </div>
     </section>
 
+    <!-- LOBBY (party) ------------------------------------------------------->
+    <section id="screen-lobby" class="screen">
+      <div class="lobby-card">
+        <h2 class="lobby-title">Party lobby</h2>
+        <div class="lobby-code-row">
+          <span class="muted">Room code</span>
+          <span id="lobby-code" class="lobby-code">····</span>
+          <button id="btn-lobby-copy" class="btn btn-small">Copy link</button>
+        </div>
+
+        <div id="lobby-players" class="lobby-players"></div>
+
+        <div id="lobby-host" class="lobby-host hidden">
+          <div class="cfg-row">
+            <span class="cfg-label">Rounds</span>
+            <div id="lobby-rounds" class="seg" role="group" aria-label="Rounds">
+              <button type="button" class="seg-btn" data-rounds="1">1</button>
+              <button type="button" class="seg-btn" data-rounds="2">2</button>
+              <button type="button" class="seg-btn active" data-rounds="3">3</button>
+              <button type="button" class="seg-btn" data-rounds="4">4</button>
+              <button type="button" class="seg-btn" data-rounds="5">5</button>
+            </div>
+          </div>
+          <div class="cfg-row">
+            <span class="cfg-label">Difficulty</span>
+            <div id="lobby-diff" class="difficulty" role="group" aria-label="Difficulty">
+              <button type="button" class="diff-btn" data-diff="easy">Easy</button>
+              <button type="button" class="diff-btn active" data-diff="medium">Medium</button>
+              <button type="button" class="diff-btn" data-diff="hard">Hard</button>
+              <button type="button" class="diff-btn" data-diff="expert">Expert</button>
+            </div>
+          </div>
+          <div class="cfg-row">
+            <span class="cfg-label">Countdown</span>
+            <div id="lobby-grace" class="seg" role="group" aria-label="Finish countdown">
+              <button type="button" class="seg-btn" data-grace="30">30s</button>
+              <button type="button" class="seg-btn" data-grace="45">45s</button>
+              <button type="button" class="seg-btn active" data-grace="60">60s</button>
+              <button type="button" class="seg-btn" data-grace="90">90s</button>
+            </div>
+          </div>
+          <button id="btn-start-party" class="btn btn-primary">Start game</button>
+        </div>
+
+        <p id="lobby-wait" class="muted hidden">Waiting for the host to start…</p>
+        <button id="btn-lobby-leave" class="btn btn-ghost btn-small">Leave</button>
+      </div>
+    </section>
+
     <!-- GAME ---------------------------------------------------------------->
     <section id="screen-game" class="screen">
       <header class="topbar">
@@ -55,13 +113,24 @@
             <div class="progress"><div class="progress-fill opp" id="opp-progress"></div></div>
           </div>
         </div>
-        <button id="btn-leave" class="btn btn-small btn-ghost">Leave</button>
+        <div class="topbar-btns">
+          <button id="btn-end-game" class="btn btn-small btn-ghost hidden">End game</button>
+          <button id="btn-leave" class="btn btn-small btn-ghost">Leave</button>
+        </div>
       </header>
+
+      <div id="round-countdown" class="round-countdown hidden">
+        <i class="flag" aria-hidden="true">🏁</i>
+        <span id="round-countdown-text" class="rc-text">Someone finished — game ends in</span>
+        <span id="round-countdown-time" class="rc-time">0:60</span>
+      </div>
 
       <div class="status-row">
         <span id="difficulty-badge" class="diff-badge hidden"></span>
         <p id="status" class="status"></p>
       </div>
+
+      <div id="leaderboard-strip" class="lb-strip hidden"></div>
 
       <div id="board" class="board"></div>
 
@@ -80,6 +149,8 @@
         <span id="solo-best" class="muted"></span>
         <button id="btn-new-solo" class="btn btn-small">New Puzzle</button>
       </div>
+
+      <div id="round-toast" class="round-toast hidden"></div>
     </section>
 
     <!-- RESULT MODAL -------------------------------------------------------->
@@ -90,6 +161,18 @@
         <div class="modal-actions">
           <button id="result-rematch" class="btn btn-primary">Rematch</button>
           <button id="result-home" class="btn btn-ghost">Home</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- LEADERBOARD MODAL (party final) ------------------------------------->
+    <div id="leaderboard-modal" class="modal hidden">
+      <div class="modal-card">
+        <h2 id="leaderboard-title">Final results</h2>
+        <div id="leaderboard-list" class="lb-list"></div>
+        <div class="modal-actions">
+          <button id="leaderboard-primary" class="btn btn-primary">Play again</button>
+          <button id="leaderboard-home" class="btn btn-ghost">Home</button>
         </div>
       </div>
     </div>

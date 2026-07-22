@@ -149,3 +149,185 @@ export async function leaveRoom(code, role) {
 export function opponentRole(role) {
   return role === 'player1' ? 'player2' : 'player1';
 }
+
+// ---------------------------------------------------------------------------
+// PARTY MODE — up to 12 players, a lobby, N rounds, and a live leaderboard.
+// Each client writes ONLY its own players/{id} subtree; the two shared,
+// contended fields (`finishDeadline`, `status`) are written via single-shot
+// transactions so exactly one client ever flips them.
+// ---------------------------------------------------------------------------
+
+export const MAX_PLAYERS = 12;
+
+/** Random per-client player id (main.js persists it in sessionStorage). */
+export function generatePlayerId() {
+  const a = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let id = '';
+  for (let i = 0; i < 12; i++) id += a[Math.floor(Math.random() * a.length)];
+  return id;
+}
+
+/** Register onDisconnect so a dropped client is marked absent automatically. */
+async function registerPresence(code, playerId) {
+  await ensureDb();
+  const presRef = rtdb.ref(db, `rooms/${code}/players/${playerId}/present`);
+  rtdb.onDisconnect(presRef).set(false);
+}
+
+/** A fresh party-player node. */
+function newPartyPlayer(name) {
+  return {
+    name,
+    present: true,
+    joinedAt: rtdb.serverTimestamp(),
+    currentRound: 0,
+    progress: 0,
+    roundTimes: [],
+    done: false,
+    totalTime: null,
+  };
+}
+
+/**
+ * Peek at a room with a single read so the shared Join input can route by mode
+ * and reject full / already-started rooms before committing to a flow.
+ */
+export async function peekRoom(code) {
+  const ref = await roomRef(code);
+  const snap = await rtdb.get(ref);
+  if (!snap.exists()) return { exists: false };
+  const data = snap.val();
+  return {
+    exists: true,
+    mode: data.mode || '1v1', // legacy 1v1 rooms have no `mode`
+    status: data.status || null,
+    playerCount: data.players ? Object.keys(data.players).length : 0,
+  };
+}
+
+/** Create a party room in the lobby state with the host as the first player. */
+export async function createParty(code, { hostId, name, config }) {
+  const ref = await roomRef(code);
+  await rtdb.set(ref, {
+    mode: 'party',
+    status: 'lobby',
+    hostId,
+    config,
+    createdAt: rtdb.serverTimestamp(),
+    startedAt: null,
+    finishDeadline: null,
+    endedAt: null,
+    players: { [hostId]: newPartyPlayer(name) },
+  });
+  await registerPresence(code, hostId);
+}
+
+/**
+ * Join a party lobby. Rejects if the room is missing, already started (late
+ * join blocked), or full. Returns the current room snapshot.
+ */
+export async function joinParty(code, { playerId, name }) {
+  const ref = await roomRef(code);
+  const snap = await rtdb.get(ref);
+  if (!snap.exists()) throw new Error(`Room "${code}" not found.`);
+  const data = snap.val();
+  if (data.mode !== 'party') throw new Error('That code is not a party room.');
+  if (data.status !== 'lobby') throw new Error('That game has already started.');
+  if (data.players && Object.keys(data.players).length >= MAX_PLAYERS) {
+    throw new Error('That room is full (12 players).');
+  }
+  await rtdb.update(rtdb.ref(db, `rooms/${code}/players/${playerId}`), newPartyPlayer(name));
+  await registerPresence(code, playerId);
+  return data;
+}
+
+/** Host edits lobby config (rounds / difficulty / grace). */
+export async function updatePartyConfig(code, config) {
+  await ensureDb();
+  await rtdb.update(rtdb.ref(db, `rooms/${code}/config`), config);
+}
+
+/** Host starts the game: shared start time + the pre-generated round puzzles. */
+export async function startParty(code, rounds) {
+  await ensureDb();
+  await rtdb.update(rtdb.ref(db, `rooms/${code}`), {
+    status: 'playing',
+    rounds,
+    startedAt: rtdb.serverTimestamp(),
+    finishDeadline: null,
+  });
+}
+
+/** Write THIS client's own player fields only. */
+export async function writePlayerState(code, playerId, patch) {
+  await ensureDb();
+  await rtdb.update(rtdb.ref(db, `rooms/${code}/players/${playerId}`), patch);
+}
+
+/**
+ * Arm the global finish countdown — set only if still null, so the FIRST player
+ * to complete all rounds wins the arm. Returns true if this client armed it.
+ * (Absolute ms timestamp; ~1 s cross-device skew is fine for a 30–90 s window.)
+ */
+export async function armFinishDeadline(code, graceSeconds) {
+  await ensureDb();
+  const dref = rtdb.ref(db, `rooms/${code}/finishDeadline`);
+  const res = await rtdb.runTransaction(dref, (cur) =>
+    cur == null ? Date.now() + graceSeconds * 1000 : undefined
+  );
+  return res.committed;
+}
+
+/** Flip the room to finished exactly once (deadline reached, all done, or host). */
+export async function finishParty(code) {
+  await ensureDb();
+  const sref = rtdb.ref(db, `rooms/${code}/status`);
+  const res = await rtdb.runTransaction(sref, (cur) =>
+    cur === 'playing' ? 'finished' : undefined
+  );
+  if (res.committed) {
+    await rtdb.update(rtdb.ref(db, `rooms/${code}`), { endedAt: rtdb.serverTimestamp() });
+  }
+}
+
+/** Mark THIS client absent (best-effort; onDisconnect also covers hard drops). */
+export async function leaveParty(code, playerId) {
+  await ensureDb();
+  await rtdb.update(rtdb.ref(db, `rooms/${code}/players/${playerId}`), { present: false });
+}
+
+/**
+ * Claim host when the previous host has left the lobby. CAS on `hostId` so only
+ * the first claimer (whose `oldHostId` still matches) wins; others abort.
+ */
+export async function claimHost(code, playerId, oldHostId) {
+  await ensureDb();
+  const href = rtdb.ref(db, `rooms/${code}/hostId`);
+  await rtdb.runTransaction(href, (cur) => (cur === oldHostId ? playerId : undefined));
+}
+
+/** Host restarts a fresh game for the same room: reset everyone, new puzzles. */
+export async function partyPlayAgain(code, rounds) {
+  const ref = await roomRef(code);
+  const snap = await rtdb.get(ref);
+  const prev = snap.val() || {};
+  const players = {};
+  for (const [id, p] of Object.entries(prev.players || {})) {
+    players[id] = {
+      ...p,
+      currentRound: 0,
+      progress: 0,
+      roundTimes: [],
+      done: false,
+      totalTime: null,
+    };
+  }
+  await rtdb.update(ref, {
+    status: 'playing',
+    rounds,
+    startedAt: rtdb.serverTimestamp(),
+    finishDeadline: null,
+    endedAt: null,
+    players,
+  });
+}

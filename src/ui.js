@@ -21,9 +21,10 @@ export function showScreen(name) {
 }
 
 /** Wire the home-screen buttons. Callbacks are supplied by main.js. */
-export function setupHome({ onSolo, onCreate, onJoin }) {
+export function setupHome({ onSolo, onCreate, onParty, onJoin }) {
   $('btn-solo').addEventListener('click', onSolo);
   $('btn-create').addEventListener('click', onCreate);
+  $('btn-party').addEventListener('click', onParty);
   $('btn-join').addEventListener('click', () => {
     const code = $('join-code').value.trim().toUpperCase();
     if (code) onJoin(code);
@@ -33,28 +34,48 @@ export function setupHome({ onSolo, onCreate, onJoin }) {
   });
 }
 
+/** The player's chosen display name (trimmed); persisted by main.js. */
+export function getPlayerName() {
+  return $('player-name').value.trim();
+}
+export function setPlayerName(name) {
+  $('player-name').value = name || '';
+}
+
 /**
- * Wire the difficulty segmented control. Clicking a button marks it active and
- * calls `onChange(level)` with 'easy' | 'medium' | 'hard'. Purely presentational
- * — main.js keeps the selected value and feeds it into the puzzle generator.
+ * Wire a segmented control: clicking a `.<btnClass>` inside `container` marks it
+ * active and reports the chosen value from `data-<attr>`. Reused by the home and
+ * lobby difficulty selectors and the rounds/countdown pickers.
  */
-export function setupDifficulty(onChange) {
-  const buttons = document.querySelectorAll('.diff-btn');
+function wireSegment(container, btnClass, attr, onChange) {
+  const buttons = container.querySelectorAll(`.${btnClass}`);
   buttons.forEach((btn) => {
     btn.addEventListener('click', () => {
       buttons.forEach((b) => b.classList.toggle('active', b === btn));
-      onChange(btn.dataset.diff);
+      onChange(btn.dataset[attr]);
     });
   });
 }
 
+/**
+ * Wire the HOME difficulty control only (scoped so it never grabs the lobby's
+ * own difficulty buttons). Calls `onChange('easy'|'medium'|'hard'|'expert')`.
+ */
+export function setupDifficulty(onChange) {
+  wireSegment($('screen-home'), 'diff-btn', 'diff', onChange);
+}
+
 /** Toggle which mode-specific chrome is visible on the game screen. */
-export function configureGameChrome({ mode }) {
-  const multiplayer = mode === 'create' || mode === 'join';
-  $('opponent-panel').classList.toggle('hidden', !multiplayer);
+export function configureGameChrome({ mode, isHost = false }) {
+  const oneVone = mode === 'create' || mode === 'join';
+  const party = mode === 'party';
+  $('opponent-panel').classList.toggle('hidden', !oneVone);
   $('share-box').classList.toggle('hidden', mode !== 'create');
-  $('solo-controls').classList.toggle('hidden', multiplayer);
-  $('you-label').textContent = multiplayer ? 'You' : 'Solo';
+  $('solo-controls').classList.toggle('hidden', oneVone || party);
+  $('leaderboard-strip').classList.toggle('hidden', !party);
+  $('btn-end-game').classList.toggle('hidden', !(party && isHost));
+  $('you-label').textContent = mode === 'solo' ? 'Solo' : 'You';
+  if (!party) hideCountdown();
 }
 
 /** Display the shareable room link (create mode). */
@@ -130,4 +151,163 @@ export function showResult({ title, message, rematchLabel, onRematch, onHome }) 
 
 export function hideResult() {
   $('result-modal').classList.add('hidden');
+}
+
+// --- party mode -------------------------------------------------------------
+
+/** Build one leaderboard row element (names use textContent — never innerHTML). */
+function rowEl(e) {
+  const row = document.createElement('div');
+  row.className = 'lb-row' + (e.isMe ? ' you' : '');
+  const rk = document.createElement('span');
+  rk.className = 'rk';
+  rk.textContent = e.rank;
+  const nm = document.createElement('span');
+  nm.className = 'nm';
+  nm.textContent = e.name;
+  const tag = document.createElement('span');
+  tag.className = `tag tag-${e.tone || 'solving'}`;
+  tag.textContent = e.label;
+  const tm = document.createElement('span');
+  tm.className = 'tm';
+  tm.textContent = e.time || '';
+  row.append(rk, nm, tag, tm);
+  return row;
+}
+
+/** Set the active button of a segmented control to the one matching `val`. */
+function setSegActive(container, attr, val) {
+  container.querySelectorAll('button').forEach((b) => {
+    b.classList.toggle('active', b.dataset[attr] === val);
+  });
+}
+
+/** Wire the lobby's config controls and action buttons (host + guest). */
+export function setupLobbyControls({ onRounds, onDifficulty, onGrace, onStart, onLeave, onCopy }) {
+  wireSegment($('lobby-rounds'), 'seg-btn', 'rounds', (v) => onRounds(Number(v)));
+  wireSegment($('lobby-diff'), 'diff-btn', 'diff', onDifficulty);
+  wireSegment($('lobby-grace'), 'seg-btn', 'grace', (v) => onGrace(Number(v)));
+  $('btn-start-party').addEventListener('click', onStart);
+  $('btn-lobby-leave').addEventListener('click', onLeave);
+  $('btn-lobby-copy').addEventListener('click', onCopy);
+}
+
+const DIFF_NAME = { easy: 'Easy', medium: 'Medium', hard: 'Hard', expert: 'Expert' };
+
+/** Render the lobby: room code, player chips, and host config vs guest wait. */
+export function renderLobby({ code, players, config, isHost }) {
+  $('lobby-code').textContent = code;
+  const list = $('lobby-players');
+  list.innerHTML = '';
+  players.forEach((p) => {
+    const chip = document.createElement('span');
+    chip.className = 'pchip' + (p.isMe ? ' me' : '');
+    chip.textContent = p.name;
+    if (p.isHost) {
+      const star = document.createElement('span');
+      star.className = 'pchip-host';
+      star.textContent = ' ★';
+      chip.appendChild(star);
+    }
+    list.appendChild(chip);
+  });
+
+  $('lobby-host').classList.toggle('hidden', !isHost);
+  $('lobby-wait').classList.toggle('hidden', isHost);
+  if (isHost) {
+    setSegActive($('lobby-rounds'), 'rounds', String(config.rounds));
+    setSegActive($('lobby-diff'), 'diff', config.difficulty);
+    setSegActive($('lobby-grace'), 'grace', String(config.graceSeconds));
+  } else {
+    $('lobby-wait').textContent = `Waiting for the host to start… (${config.rounds} rounds · ${
+      DIFF_NAME[config.difficulty] || config.difficulty
+    })`;
+  }
+}
+
+/** Render the compact live standings strip (leader + you, tap to expand all). */
+export function renderLiveStandings(rows) {
+  const strip = $('leaderboard-strip');
+  strip.innerHTML = '';
+
+  const full = document.createElement('div');
+  full.className = 'lb-full';
+  rows.forEach((r) => full.appendChild(rowEl(r)));
+
+  const collapsed = document.createElement('div');
+  collapsed.className = 'lb-collapsed';
+  const top = rows[0];
+  const me = rows.find((r) => r.isMe);
+  if (top) collapsed.appendChild(rowEl(top));
+  if (me && me !== top) collapsed.appendChild(rowEl(me));
+
+  const hint = document.createElement('div');
+  hint.className = 'lb-hint';
+  const setHint = () => {
+    hint.textContent = strip.classList.contains('expanded')
+      ? 'tap to collapse'
+      : `tap to see all ${rows.length}`;
+  };
+  setHint();
+
+  strip.append(collapsed, full, hint);
+  strip.onclick = () => {
+    strip.classList.toggle('expanded');
+    setHint();
+  };
+}
+
+function fmtClock(seconds) {
+  const s = Math.max(0, Math.ceil(seconds));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+/** Show/refresh the global finish countdown banner (urgent under 10 s). */
+export function showCountdown(secondsLeft) {
+  const el = $('round-countdown');
+  el.classList.remove('hidden');
+  el.classList.toggle('urgent', secondsLeft <= 10);
+  $('round-countdown-time').textContent = fmtClock(secondsLeft);
+}
+export function hideCountdown() {
+  $('round-countdown').classList.add('hidden');
+  $('round-countdown').classList.remove('urgent');
+}
+
+let toastTimer = null;
+/** Briefly flash a non-blocking "Round k/N" toast on an instant round change. */
+export function flashRoundToast(text) {
+  const el = $('round-toast');
+  el.textContent = text;
+  el.classList.remove('hidden');
+  el.classList.remove('show');
+  void el.offsetWidth; // restart the animation
+  el.classList.add('show');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    el.classList.remove('show');
+    el.classList.add('hidden');
+  }, 1100);
+}
+
+/** Show the full final leaderboard. `onPrimary` null hides the primary button. */
+export function showLeaderboard({ title, rows, primaryLabel, onPrimary, onHome }) {
+  $('leaderboard-title').textContent = title;
+  const list = $('leaderboard-list');
+  list.innerHTML = '';
+  rows.forEach((r) => list.appendChild(rowEl(r)));
+
+  const pr = $('leaderboard-primary');
+  if (onPrimary) {
+    pr.textContent = primaryLabel || 'Play again';
+    pr.classList.remove('hidden');
+    pr.onclick = onPrimary;
+  } else {
+    pr.classList.add('hidden');
+  }
+  $('leaderboard-home').onclick = onHome;
+  $('leaderboard-modal').classList.remove('hidden');
+}
+export function hideLeaderboard() {
+  $('leaderboard-modal').classList.add('hidden');
 }

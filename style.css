@@ -462,6 +462,242 @@ body {
   display: none !important;
 }
 
+/* --- party: lobby ---------------------------------------------------------- */
+
+.lobby-card {
+  margin-top: 6vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.lobby-title {
+  margin: 0;
+  text-align: center;
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+.lobby-code-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+.lobby-code {
+  font-weight: 800;
+  letter-spacing: 3px;
+  font-size: 1.2rem;
+}
+.lobby-players {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  min-height: 34px;
+}
+.pchip {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.pchip.me {
+  border-color: var(--accent);
+}
+.pchip-host {
+  color: var(--sun);
+}
+.lobby-host {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.cfg-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.cfg-label {
+  width: 78px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.seg {
+  flex: 1;
+  display: flex;
+  gap: 6px;
+  background: var(--pill-bg);
+  border-radius: 999px;
+  padding: 4px;
+}
+.seg-btn {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.85rem;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 8px 2px;
+  cursor: pointer;
+}
+.seg-btn.active {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+/* --- party: countdown banner ----------------------------------------------- */
+
+.round-countdown {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--danger);
+  color: #fff;
+  border-radius: 12px;
+  padding: 10px 14px;
+}
+.round-countdown .rc-text {
+  flex: 1;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.round-countdown .rc-time {
+  font-size: 1.4rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.round-countdown.urgent {
+  animation: rc-pulse 1s ease infinite;
+}
+@keyframes rc-pulse {
+  50% {
+    opacity: 0.72;
+  }
+}
+
+/* --- party: live standings strip + leaderboard rows ------------------------ */
+
+.lb-strip {
+  width: 100%;
+  background: var(--pill-bg);
+  border-radius: 12px;
+  padding: 4px;
+  cursor: pointer;
+}
+.lb-strip.expanded .lb-collapsed {
+  display: none;
+}
+.lb-full {
+  display: none;
+}
+.lb-strip.expanded .lb-full {
+  display: block;
+}
+.lb-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+}
+.lb-row.you {
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+.lb-row .rk {
+  width: 16px;
+  text-align: center;
+  color: var(--muted);
+  font-weight: 600;
+}
+.lb-row .nm {
+  flex: 1;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lb-row .tag {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.tag-solving {
+  background: #e6f1fb;
+  color: #0c447c;
+}
+.tag-done {
+  background: #c0dd97;
+  color: #27500a;
+}
+.tag-left {
+  background: var(--track);
+  color: var(--muted);
+}
+.lb-row .tm {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  min-width: 40px;
+  text-align: right;
+}
+.lb-hint {
+  text-align: center;
+  font-size: 0.7rem;
+  color: var(--muted);
+  padding: 3px 0 1px;
+}
+.lb-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 52vh;
+  overflow-y: auto;
+  margin-bottom: 18px;
+  text-align: left;
+}
+
+/* --- party: round-change toast --------------------------------------------- */
+
+.round-toast {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-8px);
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+  padding: 8px 18px;
+  border-radius: 999px;
+  z-index: 20;
+  opacity: 0;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  pointer-events: none;
+}
+.round-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.topbar-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 /* --- desktop niceties ------------------------------------------------------ */
 
 @media (min-width: 620px) {
