@@ -26,7 +26,7 @@ async function ensureDb() {
   if (db) return db;
   if (!isFirebaseConfigured()) {
     throw new Error(
-      'Firebase is not configured — paste your keys into src/firebaseConfig.js to play multiplayer.'
+      'Firebase is not configured - paste your keys into src/firebaseConfig.js to play multiplayer.'
     );
   }
   const { initializeApp } = await import(APP_URL);
@@ -113,7 +113,7 @@ export async function writeFinish(code, role, finishTime) {
  */
 export async function subscribeRoom(code, callback) {
   const ref = await roomRef(code);
-  // In the modular SDK onValue() returns the unsubscribe function directly —
+  // In the modular SDK onValue() returns the unsubscribe function directly -
   // return it as-is rather than trying to re-detach via off().
   return rtdb.onValue(ref, (snap) => {
     if (snap.exists()) callback(snap.val());
@@ -151,7 +151,7 @@ export function opponentRole(role) {
 }
 
 // ---------------------------------------------------------------------------
-// PARTY MODE — up to 12 players, a lobby, N rounds, and a live leaderboard.
+// PARTY MODE - up to 12 players, a lobby, N rounds, and a live leaderboard.
 // Each client writes ONLY its own players/{id} subtree; the two shared,
 // contended fields (`finishDeadline`, `status`) are written via single-shot
 // transactions so exactly one client ever flips them.
@@ -265,9 +265,9 @@ export async function writePlayerState(code, playerId, patch) {
 }
 
 /**
- * Arm the global finish countdown — set only if still null, so the FIRST player
+ * Arm the global finish countdown - set only if still null, so the FIRST player
  * to complete all rounds wins the arm. Returns true if this client armed it.
- * (Absolute ms timestamp; ~1 s cross-device skew is fine for a 30–90 s window.)
+ * (Absolute ms timestamp; ~1 s cross-device skew is fine for a 30-90 s window.)
  */
 export async function armFinishDeadline(code, graceSeconds) {
   await ensureDb();

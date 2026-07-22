@@ -4,7 +4,7 @@
 //
 // A GameSession wraps everything about a single in-progress board: the puzzle
 // (givens + clues), the immutable solution, the player's current grid, the
-// timer, and a small move history. It knows nothing about the DOM or Firebase —
+// timer, and a small move history. It knows nothing about the DOM or Firebase -
 // multiplayer mode simply reads its state and pipes changes out to the network,
 // while solo mode drives the exact same object and ignores the network.
 // ---------------------------------------------------------------------------
@@ -60,7 +60,7 @@ export class GameSession {
 
   /**
    * Cycle the symbol at (row, col). Givens are immutable and ignored. Following
-   * the original's feel, an illegal placement is still applied — we just report
+   * the original's feel, an illegal placement is still applied - we just report
    * `valid: false` so the UI can flash the cell red rather than blocking input.
    * Returns { changed, valid, symbol }.
    */
@@ -108,8 +108,8 @@ export class GameSession {
 
   /**
    * Clear all of the player's own moves, restoring the board to the initial
-   * puzzle (givens only). The timer keeps running — resetting is "start the
-   * board over", not "reset the clock" — so it stays fair in a timed race.
+   * puzzle (givens only). The timer keeps running - resetting is "start the
+   * board over", not "reset the clock" - so it stays fair in a timed race.
    */
   reset() {
     this.grid = gridFromPuzzle(this.puzzle);
@@ -160,7 +160,7 @@ export class GameSession {
     return !!this.solution && isBoardComplete(this.grid, this.solution);
   }
 
-  /** Fraction (0..1) of cells correctly filled — feeds progress bars. */
+  /** Fraction (0..1) of cells correctly filled - feeds progress bars. */
   getProgress() {
     return this.solution ? progressFraction(this.grid, this.solution) : 0;
   }

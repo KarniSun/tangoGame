@@ -96,7 +96,7 @@ export function updateOpponent(player) {
   $('opp-status').textContent = present ? '' : 'waiting…';
   $('opp-progress').style.width = `${Math.round((player?.progress || 0) * 100)}%`;
   $('opp-timer').textContent =
-    player?.finishTime != null ? formatTime(player.finishTime) : present ? 'playing…' : '—';
+    player?.finishTime != null ? formatTime(player.finishTime) : present ? 'playing…' : '-';
 }
 
 /** Show a transient status line (e.g. "Waiting for opponent to join…"). */
@@ -155,7 +155,7 @@ export function hideResult() {
 
 // --- party mode -------------------------------------------------------------
 
-/** Build one leaderboard row element (names use textContent — never innerHTML). */
+/** Build one leaderboard row element (names use textContent - never innerHTML). */
 function rowEl(e) {
   const row = document.createElement('div');
   row.className = 'lb-row' + (e.isMe ? ' you' : '');

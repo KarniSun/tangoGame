@@ -1,4 +1,4 @@
-/* style.css — clean, minimal, mobile-first, matching the LinkedIn Tango look. */
+/* style.css - clean, minimal, mobile-first, matching the LinkedIn Tango look. */
 
 :root {
   color-scheme: light dark; /* declare both so mobile browsers don't force-invert */
@@ -357,7 +357,7 @@ body {
 .cell.invalid {
   animation: flash-red 0.6s ease;
 }
-/* Hint pulse — a friendly ring drawing the eye to a wrong or revealed cell. */
+/* Hint pulse - a friendly ring drawing the eye to a wrong or revealed cell. */
 .cell.hint {
   animation: hint-pulse 1.3s ease;
 }

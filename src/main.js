@@ -1,7 +1,7 @@
 // main.js
 // ---------------------------------------------------------------------------
 // Entry point. Reads the chosen mode, builds the right combination of modules,
-// and wires them together. It owns no puzzle logic and no rendering details —
+// and wires them together. It owns no puzzle logic and no rendering details -
 // it just orchestrates GameSession + boardRenderer + ui, and (only in
 // multiplayer) the multiplayer/Firebase layer.
 // ---------------------------------------------------------------------------
@@ -24,7 +24,7 @@ const DIFFICULTY = {
   medium: { minGivens: 11, clueCount: 5 },
   hard: { minGivens: 6, clueCount: 5 },
   // Expert: sample 120 candidates and keep the one demanding the MOST
-  // contradiction-reasoning steps (~9 vs a typical 1) — still fully fair, never
+  // contradiction-reasoning steps (~9 vs a typical 1) - still fully fair, never
   // guessing, but relentlessly demanding.
   expert: { minGivens: 0, clueCount: 2, sampleBest: 120, depth: 1 },
 };
@@ -47,7 +47,7 @@ let canPlay = false; // gated until both players are present
 let myFinishTime = null; // my elapsed seconds at solve, known before Firebase echoes it
 
 const HINT_INITIAL = 30; // seconds before the FIRST hint of a puzzle/round
-const HINT_COOLDOWN = 15; // seconds between hints afterwards
+const HINT_COOLDOWN = 10; // seconds between hints afterwards
 let hintReadyAt = 0; // epoch ms when the Hint button becomes usable again
 
 // Party-only state.
@@ -187,7 +187,7 @@ async function copyPartyLink() {
     btn.textContent = 'Copied!';
     setTimeout(() => (btn.textContent = 'Copy link'), 1500);
   } catch {
-    /* clipboard blocked — ignore */
+    /* clipboard blocked - ignore */
   }
 }
 
@@ -368,7 +368,7 @@ function handlePartySolve() {
       totalTime: total,
     }).catch(() => {});
     mp.armFinishDeadline(roomCode, (partyConfig && partyConfig.graceSeconds) || 60).catch(() => {});
-    ui.setStatus(`You finished! Total ${fmtTotal(total)} — waiting for others…`);
+    ui.setStatus(`You finished! Total ${fmtTotal(total)} - waiting for others…`);
   }
 }
 
@@ -598,7 +598,7 @@ let fullHintShown = false;
 function refreshConflicts() {
   const full = session.grid.every((row) => row.every((v) => v !== EMPTY));
   if (full && !session.isSolved()) {
-    ui.setStatus('Board full, but not solved — check the = / × clues and each row & column.');
+    ui.setStatus('Board full, but not solved - check the = / × clues and each row & column.');
     fullHintShown = true;
   } else if (fullHintShown) {
     ui.setStatus(''); // clear the hint once the player edits the board again
@@ -660,7 +660,7 @@ function resolveMultiplayer(me, opp) {
 
   let title;
   if (mine != null && theirs != null && mine === theirs) {
-    title = "It's a tie! 🤝"; // exact same time — both clients agree it's a draw
+    title = "It's a tie! 🤝"; // exact same time - both clients agree it's a draw
   } else {
     let iWon;
     if (mine != null && theirs != null) {
@@ -670,11 +670,11 @@ function resolveMultiplayer(me, opp) {
     } else {
       iWon = false; // opponent finished first
     }
-    title = iWon ? 'You won! 🎉' : 'Opponent won — better luck next time';
+    title = iWon ? 'You won! 🎉' : 'Opponent won - better luck next time';
   }
 
-  const mineStr = mine != null ? ui.formatTime(mine) : '—';
-  const theirsStr = theirs != null ? ui.formatTime(theirs) : '—';
+  const mineStr = mine != null ? ui.formatTime(mine) : '-';
+  const theirsStr = theirs != null ? ui.formatTime(theirs) : '-';
 
   finished = true;
   stopTicker();
@@ -827,7 +827,7 @@ function setupGameControls() {
       btn.textContent = 'Copied!';
       setTimeout(() => (btn.textContent = 'Copy'), 1500);
     } catch {
-      link.select(); // clipboard API blocked (e.g. insecure origin) — fall back
+      link.select(); // clipboard API blocked (e.g. insecure origin) - fall back
     }
   });
 }

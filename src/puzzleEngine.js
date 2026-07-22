@@ -228,7 +228,7 @@ export function countSolutions(grid, clues = [], limitAt2 = 2) {
 // --- logic solver (no guessing) ---------------------------------------------
 
 /**
- * Solve `grid` using ONLY forced moves — the deductions a human makes without
+ * Solve `grid` using ONLY forced moves - the deductions a human makes without
  * guessing. Repeatedly scans every empty cell; if exactly one of {sun, moon} is
  * legal there (respecting the no-3-in-a-row rule, the 3-per-line balance, and
  * the clues), that symbol is forced and filled in. This captures the standard
@@ -237,7 +237,7 @@ export function countSolutions(grid, clues = [], limitAt2 = 2) {
  *
  * Returns { solved, contradiction }: `solved` is true only if pure logic filled
  * the whole board. A puzzle that returns solved=true is guaranteed both unique
- * AND reachable step-by-step without trial and error — i.e. genuinely fair.
+ * AND reachable step-by-step without trial and error - i.e. genuinely fair.
  */
 export function forcedSolve(startGrid, clues, depth = 0) {
   const grid = cloneGrid(startGrid);
@@ -248,7 +248,7 @@ export function forcedSolve(startGrid, clues, depth = 0) {
   while (progress) {
     progress = false;
 
-    // Level 1: single-cell forcing — fill any cell with only one legal symbol.
+    // Level 1: single-cell forcing - fill any cell with only one legal symbol.
     for (let r = 0; r < SIZE; r++) {
       for (let c = 0; c < SIZE; c++) {
         if (grid[r][c] !== EMPTY) continue;
@@ -260,7 +260,7 @@ export function forcedSolve(startGrid, clues, depth = 0) {
         if (!canSun && !canMoon)
           return { solved: false, contradiction: true, passes, hardSteps };
         if (canSun !== canMoon) {
-          grid[r][c] = canSun ? SUN : MOON; // only one option — forced move
+          grid[r][c] = canSun ? SUN : MOON; // only one option - forced move
           progress = true;
         }
       }
@@ -269,7 +269,7 @@ export function forcedSolve(startGrid, clues, depth = 0) {
     // Level 2+: contradiction reasoning. Only invoked when simple forcing stalls
     // (and depth budget remains). For an empty cell, hypothesise a symbol and
     // propagate with a shallower solver; if that leads to a contradiction, the
-    // OTHER symbol is proven — this is provable deduction, not guessing.
+    // OTHER symbol is proven - this is provable deduction, not guessing.
     if (!progress && depth > 0) {
       outer: for (let r = 0; r < SIZE; r++) {
         for (let c = 0; c < SIZE; c++) {
@@ -326,7 +326,7 @@ export function isLogicSolvable(grid, clues, depth = 0) {
  * empty it, then check whether the remaining partial grid is still logic-solvable
  * (forcedSolve). If clearing the cell would force the player to guess, we put it
  * back (it's a required given); otherwise we leave it empty. Requiring
- * logic-solvability is strictly stronger than requiring a unique solution — it
+ * logic-solvability is strictly stronger than requiring a unique solution - it
  * guarantees the player can always reach the answer by deduction, which is what
  * makes the puzzle feel fair rather than "unsolvable". Shuffling the order makes
  * each carve (and thus each puzzle) different.
@@ -342,11 +342,11 @@ export function makePuzzle(solution, clues, minGivens = 10, depth = 0) {
 
   let filled = SIZE * SIZE;
   for (const [r, c] of positions) {
-    if (filled <= minGivens) break; // reached the target density — stop carving
+    if (filled <= minGivens) break; // reached the target density - stop carving
     const saved = grid[r][c];
     grid[r][c] = EMPTY;
     if (!isLogicSolvable(grid, clues, depth)) {
-      grid[r][c] = saved; // required given — without it the player would have to guess
+      grid[r][c] = saved; // required given - without it the player would have to guess
     } else {
       filled--;
     }
@@ -375,7 +375,7 @@ function carveOne(clueCount, minGivens, depth) {
  *
  * `sampleBest` enables difficulty-targeted rejection sampling: generate that
  * many candidate puzzles and keep the hardest one, scored by deduction depth
- * (forcedSolve passes — how many waves of forced moves the solve takes), with
+ * (forcedSolve passes - how many waves of forced moves the solve takes), with
  * fewer givens as a tie-breaker. Generation is ~0.5ms, so sampling dozens is
  * cheap. This is how the "Expert" tier gets its bite: not just few givens, but
  * boards that demand long chains of reasoning.

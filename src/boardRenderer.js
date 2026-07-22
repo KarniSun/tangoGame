@@ -1,6 +1,6 @@
 // boardRenderer.js
 // ---------------------------------------------------------------------------
-// DOM rendering of the board only — no puzzle logic, no Firebase. Given a
+// DOM rendering of the board only - no puzzle logic, no Firebase. Given a
 // container and a GameSession, it builds the 6x6 grid once, draws the sun/moon
 // icons and the =/x clue badges, and wires clicks back into the session via a
 // supplied callback. A single renderer is reused by both solo and multiplayer.
