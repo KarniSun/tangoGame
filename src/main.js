@@ -17,6 +17,10 @@ const BEST_KEY = 'tango-best-time';
 const NAME_KEY = 'tango-name';
 const THEME_KEY = 'tango-theme'; // 'light' | 'dark' | absent (follow the system)
 const RULES_KEY = 'tango-rules-open';
+// Firebase keeps its session in IndexedDB, which we cannot cheaply peek at. This
+// flag is our own breadcrumb: it tells boot whether it is worth loading the auth
+// SDK at all, so a guest who only plays solo never pulls in Firebase.
+const AUTH_HINT_KEY = 'tango-signed-in';
 
 // Difficulty presets fed into createGame(). Fewer givens = harder (more of the
 // board must be deduced). The host's choice is baked into the generated puzzle,
@@ -76,6 +80,13 @@ ui.setupDifficulty((level) => (difficulty = level));
 ui.setPlayerName(localStorage.getItem(NAME_KEY) || '');
 ui.setCoins(wallet.getCoins());
 ui.setupShop({ onOpen: showShop, onBack: () => ui.showScreen('home') });
+ui.setupAuth({
+  onOpen: handleAccountButton,
+  onBack: () => ui.showScreen('home'),
+  onGoogle: handleGoogle,
+  onSubmit: handleAuthSubmit,
+  onReset: handlePasswordReset,
+});
 setupResultDismiss();
 setupGameControls();
 setupPartyControls();
@@ -90,6 +101,8 @@ if (roomParam) {
 } else {
   ui.showScreen('home');
 }
+
+restoreSessionIfAny();
 
 // --- solo mode --------------------------------------------------------------
 
@@ -906,6 +919,125 @@ function awardCoins(args) {
   const earned = wallet.computeReward(args);
   ui.setCoins(wallet.addCoins(earned));
   return earned;
+}
+
+// --- accounts ---------------------------------------------------------------
+// Optional: the game is fully playable as a guest, and auth.js is only imported
+// when someone actually opens the account screen. That is what keeps solo mode
+// free of any Firebase dependency.
+
+let authMod = null; // lazily-imported auth module
+let signedInUser = null;
+
+async function ensureAuthMod() {
+  if (!authMod) authMod = await import('./auth.js');
+  return authMod;
+}
+
+/** Refresh everything that depends on the wallet's contents. */
+function refreshWalletUI() {
+  ui.setCoins(wallet.getCoins());
+  refreshCosmetics();
+}
+
+/** Open the account screen, or sign out if we are already signed in. */
+async function handleAccountButton() {
+  if (signedInUser) {
+    try {
+      const a = await ensureAuthMod();
+      await a.signOutUser();
+    } catch (err) {
+      ui.setHomeError(err.message);
+    }
+    return; // the auth listener handles the rest
+  }
+  ui.showAuth();
+  // Start watching sign-in state the first time the screen is opened.
+  try {
+    const a = await ensureAuthMod();
+    if (!authWatching) {
+      authWatching = true;
+      await a.onAuthChange(handleAuthChange);
+    }
+  } catch (err) {
+    ui.setAuthError(err.message);
+  }
+}
+
+let authWatching = false;
+
+/** Fires on sign-in, sign-out, and once on boot with the restored session. */
+async function handleAuthChange(user) {
+  const a = authMod;
+  if (user) {
+    signedInUser = a.displayNameOf(user);
+    ui.setAccount(signedInUser);
+    localStorage.setItem(AUTH_HINT_KEY, '1');
+    try {
+      await wallet.attachAccount(user.uid, refreshWalletUI);
+    } catch (err) {
+      ui.setAuthError(err.message);
+    }
+    refreshWalletUI();
+    // Adopt the account's name for multiplayer unless one is already set.
+    if (!localStorage.getItem(NAME_KEY)) ui.setPlayerName(signedInUser);
+    ui.showScreen('home');
+  } else {
+    signedInUser = null;
+    ui.setAccount(null);
+    localStorage.removeItem(AUTH_HINT_KEY);
+    wallet.detachAccount();
+    refreshWalletUI();
+  }
+}
+
+/** Google / email / password submissions from the account screen. */
+async function handleGoogle() {
+  await runAuth((a) => a.signInWithGoogle());
+}
+
+async function handleAuthSubmit(mode, email, password) {
+  await runAuth((a) => (mode === 'up' ? a.signUpWithEmail : a.signInWithEmail)(email, password));
+}
+
+async function handlePasswordReset(email) {
+  if (!email) {
+    ui.setAuthError('Enter your email address first, then tap Forgot password.');
+    return;
+  }
+  await runAuth(async (a) => {
+    await a.sendPasswordReset(email);
+    ui.setAuthError('Password reset email sent - check your inbox.');
+  });
+}
+
+/** Shared plumbing: disable the form, run, surface a readable error. */
+async function runAuth(fn) {
+  ui.setAuthError('');
+  ui.setAuthBusy(true);
+  try {
+    const a = await ensureAuthMod();
+    await fn(a);
+  } catch (err) {
+    ui.setAuthError(err.message || 'Something went wrong.');
+  } finally {
+    ui.setAuthBusy(false);
+  }
+}
+
+/**
+ * Restore a previous session on boot, but only if one plausibly exists - this
+ * must not pull in Firebase for a guest who is only here to play solo.
+ */
+async function restoreSessionIfAny() {
+  if (!localStorage.getItem(AUTH_HINT_KEY)) return;
+  try {
+    const a = await ensureAuthMod();
+    authWatching = true;
+    await a.onAuthChange(handleAuthChange);
+  } catch {
+    /* offline or misconfigured - carry on as a guest */
+  }
 }
 
 // --- shop -------------------------------------------------------------------

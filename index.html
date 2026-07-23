@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
     <title>Tango Duel</title>
-    <link rel="stylesheet" href="style.css?v=19" />
+    <link rel="stylesheet" href="style.css?v=20" />
   </head>
   <body>
     <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle dark mode">🌙</button>
@@ -21,7 +21,9 @@
             <span id="coin-balance">0</span>
           </span>
           <button id="btn-shop" class="btn btn-small" type="button">Shop</button>
+          <button id="btn-account" class="btn btn-small" type="button">Sign in</button>
         </div>
+        <p id="account-line" class="muted account-line hidden"></p>
 
         <input
           id="player-name"
@@ -105,6 +107,42 @@
 
         <p id="lobby-wait" class="muted hidden">Waiting for the host to start…</p>
         <button id="btn-lobby-leave" class="btn btn-ghost btn-small">Leave</button>
+      </div>
+    </section>
+
+    <!-- ACCOUNT ------------------------------------------------------------->
+    <section id="screen-auth" class="screen">
+      <div class="auth-card">
+        <h2 class="auth-title">Save your coins</h2>
+        <p class="muted auth-intro">
+          Your coins and cosmetics are stored on this device. Create an account
+          and they move with you - what you have earned so far comes along.
+        </p>
+
+        <button id="btn-google" class="btn btn-primary" type="button">Continue with Google</button>
+
+        <div class="divider"><span>or</span></div>
+
+        <input id="auth-email" class="input" type="email" placeholder="Email" autocomplete="email" />
+        <input
+          id="auth-password"
+          class="input"
+          type="password"
+          placeholder="Password"
+          autocomplete="current-password"
+        />
+        <button id="btn-auth-submit" class="btn" type="button">Create account</button>
+
+        <p class="auth-switch">
+          <span id="auth-switch-text">Already have an account?</span>
+          <button id="btn-auth-toggle" class="linkish" type="button">Sign in</button>
+        </p>
+        <button id="btn-auth-reset" class="linkish auth-reset" type="button">
+          Forgot password?
+        </button>
+
+        <p id="auth-error" class="error"></p>
+        <button id="btn-auth-back" class="btn btn-ghost btn-small">Keep playing as a guest</button>
       </div>
     </section>
 

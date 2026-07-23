@@ -159,6 +159,58 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* --- account --------------------------------------------------------------- */
+
+.account-line {
+  margin: -6px 0 0;
+  font-size: 0.85rem;
+}
+.auth-card {
+  width: 100%;
+  max-width: 380px;
+  margin: 8vh auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: center;
+}
+.auth-title {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 800;
+}
+.auth-intro {
+  margin: 0 0 4px;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+.auth-switch {
+  margin: 2px 0 0;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+.auth-reset {
+  font-size: 0.85rem;
+}
+/* Text-only affordances inside the auth card. */
+.linkish {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--moon);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.linkish:hover {
+  text-decoration: underline;
+}
+.linkish:disabled {
+  opacity: 0.5;
+  cursor: default;
+  text-decoration: none;
+}
+
 /* --- shop ------------------------------------------------------------------ */
 
 .shop-card {

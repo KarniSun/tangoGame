@@ -9,9 +9,18 @@
 //   2. The wallet itself - balance, ownership, and equipped items.
 //
 // STORAGE SEAM: loadProfile() and saveProfile() are the ONLY two functions that
-// touch persistence. Everything else goes through them. When accounts land,
-// those two bodies are what change - the reward table and every caller stay put.
+// touch persistence. Everything else goes through them, and they stay
+// synchronous against an in-memory copy so no caller had to become async when
+// accounts arrived - a sign-in just swaps where that copy is persisted to.
+//
+// Guest -> account merge: signing in ADDS the guest balance to the account,
+// unions the owned items in, and then RESETS the guest wallet. That reset is
+// what makes it idempotent - signing in twice cannot double-count, and coins
+// earned as a guest AFTER a sign-out still merge correctly next time. No
+// "already merged" flag is needed.
 // ---------------------------------------------------------------------------
+
+import { getDb } from './firebaseApp.js';
 
 const PROFILE_KEY = 'tango-profile';
 
@@ -24,29 +33,48 @@ function emptyProfile() {
   };
 }
 
+/** Coerce anything we read (localStorage or Firebase) into a valid profile. */
+function normalise(p) {
+  if (!p || typeof p !== 'object') return emptyProfile();
+  return {
+    coins: Number(p.coins) || 0,
+    owned: Array.isArray(p.owned) ? p.owned : [],
+    equipped: p.equipped && typeof p.equipped === 'object' ? p.equipped : {},
+  };
+}
+
 // --- the storage seam -------------------------------------------------------
 
-function loadProfile() {
+let accountUid = null; // null while playing as a guest
+let cache = null; // the live in-memory profile
+let notify = null; // called when a remote change lands, so the UI can refresh
+
+function readGuest() {
   try {
     const raw = localStorage.getItem(PROFILE_KEY);
-    if (!raw) return emptyProfile();
-    const p = JSON.parse(raw);
-    return {
-      coins: Number(p.coins) || 0,
-      owned: Array.isArray(p.owned) ? p.owned : [],
-      equipped: p.equipped && typeof p.equipped === 'object' ? p.equipped : {},
-    };
+    return raw ? normalise(JSON.parse(raw)) : emptyProfile();
   } catch {
     return emptyProfile(); // corrupt or blocked storage - start clean
   }
 }
 
-function saveProfile(profile) {
+function writeGuest(profile) {
   try {
     localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
   } catch {
     /* storage full or blocked - the balance just won't persist */
   }
+}
+
+function loadProfile() {
+  if (!cache) cache = readGuest();
+  return cache;
+}
+
+function saveProfile(profile) {
+  cache = profile;
+  if (accountUid) queueRemoteWrite(profile);
+  else writeGuest(profile);
 }
 
 // --- the reward table -------------------------------------------------------
@@ -155,4 +183,99 @@ export function equip(slot, id) {
   profile.equipped = { ...profile.equipped, [slot]: id };
   saveProfile(profile);
   return profile.equipped;
+}
+
+// --- accounts ---------------------------------------------------------------
+// Signed in, the profile lives at `profiles/{uid}` in the Realtime Database and
+// localStorage goes back to being an empty guest wallet.
+//
+// Note the balance is CLIENT-AUTHORITATIVE: the database rules stop other people
+// writing your profile, but nothing stops you writing your own from the console.
+// Making that impossible needs server-side validation (Cloud Functions).
+
+let unsubscribeRemote = null;
+let writeTimer = null;
+
+/**
+ * Fold a guest wallet into an account's. Pure, so the rule that matters most -
+ * you never lose coins and never gain them twice - can be tested directly.
+ */
+export function mergeProfiles(remote, guest) {
+  const r = normalise(remote);
+  const g = normalise(guest);
+  return {
+    coins: r.coins + g.coins,
+    owned: [...new Set([...r.owned, ...g.owned])],
+    // An established account keeps what it was wearing; a brand-new one adopts
+    // whatever the guest had on, so signing up doesn't visibly undress you.
+    equipped: Object.keys(r.equipped).length ? r.equipped : g.equipped,
+  };
+}
+
+/** Debounced, so a burst of purchases is one write rather than several. */
+function queueRemoteWrite(profile) {
+  const uid = accountUid;
+  if (writeTimer) clearTimeout(writeTimer);
+  writeTimer = setTimeout(async () => {
+    writeTimer = null;
+    if (accountUid !== uid) return; // signed out or switched while waiting
+    try {
+      const { db, rtdb } = await getDb();
+      await rtdb.set(rtdb.ref(db, `profiles/${uid}`), {
+        ...profile,
+        updatedAt: rtdb.serverTimestamp(),
+      });
+    } catch {
+      /* offline - the in-memory copy stays correct and syncs on the next write */
+    }
+  }, 400);
+}
+
+/**
+ * Attach the wallet to a signed-in account, folding in whatever was earned as a
+ * guest. Safe to call repeatedly for the same uid.
+ *
+ * `onRemoteChange` fires when another device changes the profile, so the caller
+ * can refresh the balance and re-apply cosmetics.
+ */
+export async function attachAccount(uid, onRemoteChange) {
+  const { db, rtdb } = await getDb();
+  const ref = rtdb.ref(db, `profiles/${uid}`);
+
+  const snap = await rtdb.get(ref);
+  const merged = mergeProfiles(normalise(snap.exists() ? snap.val() : null), readGuest());
+
+  accountUid = uid;
+  notify = onRemoteChange || null;
+  cache = merged;
+
+  // Empty the guest wallet so its contents can never be merged in twice.
+  writeGuest(emptyProfile());
+
+  await rtdb.set(ref, { ...merged, updatedAt: rtdb.serverTimestamp() });
+
+  if (unsubscribeRemote) unsubscribeRemote();
+  unsubscribeRemote = rtdb.onValue(ref, (s) => {
+    if (!s.exists() || accountUid !== uid) return;
+    cache = normalise(s.val());
+    if (notify) notify();
+  });
+
+  return merged;
+}
+
+/** Detach on sign-out: back to a fresh, empty guest wallet. */
+export function detachAccount() {
+  if (unsubscribeRemote) unsubscribeRemote();
+  unsubscribeRemote = null;
+  if (writeTimer) clearTimeout(writeTimer);
+  writeTimer = null;
+  accountUid = null;
+  notify = null;
+  cache = emptyProfile();
+  writeGuest(cache);
+}
+
+export function isSignedIn() {
+  return accountUid !== null;
 }

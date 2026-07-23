@@ -1,9 +1,12 @@
 # Tango Duel
 
-A 1v1 real-time version of the LinkedIn/Tango sun-and-moon logic puzzle. Two
-players race to solve the **exact same** board; first to finish wins. Also
-includes a solo practice mode. No accounts and no custom backend - a static site
-plus Firebase Realtime Database for syncing the two players.
+A real-time version of the LinkedIn/Tango sun-and-moon logic puzzle. Race a
+friend 1v1 or up to 12 players in a party, all solving the **exact same** board;
+first to finish wins. Also includes a solo practice mode. Finished games pay
+coins, which buy cosmetics.
+
+No custom backend - a static site plus Firebase for syncing players and (only if
+you want it) an account to carry your coins between devices.
 
 ## Play locally
 
@@ -32,11 +35,8 @@ Any static server works (`npx serve`, VS Code Live Server, etc.).
 2. Add a **Web app** and enable **Realtime Database**.
 3. Copy the config values into [`src/firebaseConfig.js`](src/firebaseConfig.js)
    - including `databaseURL` (from the Realtime Database page).
-4. Suggested database rules for this small, account-less game:
-
-   ```json
-   { "rules": { "rooms": { "$room": { ".read": true, ".write": true } } } }
-   ```
+4. Set the database rules, and enable the sign-in providers if you want accounts:
+   see [Firebase console setup](#firebase-console-setup) below.
 
 ## How multiplayer works
 
@@ -119,6 +119,60 @@ change.
 Avatars and titles ride along in each room's player node, which is how they reach
 other players' lobbies and leaderboards.
 
+## Accounts (optional)
+
+Coins live on one device until you make an account. Signing in with **Google** or
+**email/password** moves them to `profiles/{uid}` in the Realtime Database, and
+they follow you to any browser you sign in from.
+
+Signing in is entirely optional. The game is fully playable as a guest, and
+`src/auth.js` is only imported when someone opens the account screen - so solo
+mode still loads no Firebase at all and works with the network off.
+
+**The merge is idempotent by construction.** Signing in adds the guest balance to
+the account, unions the owned items in, and then *empties the guest wallet*. That
+reset is what makes signing in twice harmless, and it means coins earned as a
+guest after a sign-out still merge correctly next time. No "already merged" flag
+is needed. `mergeProfiles()` in `wallet.js` is pure, so this is directly testable.
+
+### Firebase console setup
+
+Sign-in will fail with a message telling you to do this until it is done.
+
+1. **Authentication > Sign-in method**: enable **Email/Password** (the first
+   toggle only) and **Google** (it asks for a public-facing name and a support
+   email).
+2. **Authentication > Settings > Authorized domains**: `localhost` is there by
+   default; add your deploy domain as a bare hostname when you publish.
+3. **Realtime Database > Rules**: replace the rules with
+
+   ```json
+   {
+     "rules": {
+       "rooms": { "$room": { ".read": true, ".write": true } },
+       "profiles": {
+         "$uid": {
+           ".read": "auth != null && auth.uid == $uid",
+           ".write": "auth != null && auth.uid == $uid"
+         }
+       }
+     }
+   }
+   ```
+
+   `rooms` stays open because rooms are joined by a 4-character code with no
+   accounts involved. `profiles` becomes readable and writable only by its owner.
+
+All of this fits inside the no-cost Spark plan. The limit most likely to bite is
+**100 simultaneous database connections** - one per open tab, so a full 12-player
+party uses 12.
+
+> **Coins are not tamper-proof.** The rules stop *other people* writing your
+> profile, but nothing stops you writing your own from the browser console: the
+> balance is client-authoritative. Making that impossible needs server-side
+> validation in Cloud Functions. For a game you play with friends, uid-scoped
+> rules are the right stopping point - just don't mistake them for anti-cheat.
+
 ## Architecture
 
 Puzzle generation, solving, and rule validation live in **one** place
@@ -131,7 +185,9 @@ and multiplayer. The engine is pure (no DOM/Firebase) and unit-testable.
 | `src/gameSession.js` | Shared game state (grid, timer, moves) for both modes |
 | `src/boardRenderer.js` | DOM rendering of the board + clue badges |
 | `src/ui.js` | Screen switching, timer/panel display, result modal |
-| `src/multiplayer.js` | The only file that talks to Firebase |
+| `src/firebaseApp.js` | One memoized Firebase app + database, shared below |
+| `src/multiplayer.js` | The only file that talks to the Realtime Database |
+| `src/auth.js` | The only file that talks to Firebase Authentication |
 | `src/wallet.js` | Coin balance, ownership, and the payout table |
 | `src/cosmetics.js` | Shop catalog + applying equipped items as CSS variables |
 | `src/firebaseConfig.js` | Firebase config object |

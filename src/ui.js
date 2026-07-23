@@ -305,6 +305,65 @@ export function renderLiveStandings(rows) {
   };
 }
 
+// --- account ----------------------------------------------------------------
+
+/** Wire the account screen. `onSubmit(mode, email, password)` handles both. */
+export function setupAuth({ onOpen, onBack, onGoogle, onSubmit, onReset }) {
+  $('btn-account').addEventListener('click', onOpen);
+  $('btn-auth-back').addEventListener('click', onBack);
+  $('btn-google').addEventListener('click', onGoogle);
+  $('btn-auth-submit').addEventListener('click', () =>
+    onSubmit(authMode, $('auth-email').value.trim(), $('auth-password').value)
+  );
+  $('btn-auth-toggle').addEventListener('click', () => setAuthMode(authMode === 'up' ? 'in' : 'up'));
+  $('btn-auth-reset').addEventListener('click', () => onReset($('auth-email').value.trim()));
+}
+
+// 'up' = create an account, 'in' = sign in to an existing one.
+let authMode = 'up';
+
+function setAuthMode(mode) {
+  authMode = mode;
+  const up = mode === 'up';
+  $('btn-auth-submit').textContent = up ? 'Create account' : 'Sign in';
+  $('auth-switch-text').textContent = up ? 'Already have an account?' : 'Need an account?';
+  $('btn-auth-toggle').textContent = up ? 'Sign in' : 'Create one';
+  $('auth-password').setAttribute('autocomplete', up ? 'new-password' : 'current-password');
+  setAuthError('');
+}
+
+/** Open the account screen, reset to a clean "create account" state. */
+export function showAuth() {
+  $('auth-password').value = '';
+  setAuthMode('up');
+  showScreen('auth');
+}
+
+export function setAuthError(text) {
+  $('auth-error').textContent = text || '';
+}
+
+export function setAuthBusy(busy) {
+  for (const id of ['btn-google', 'btn-auth-submit', 'btn-auth-toggle', 'btn-auth-reset']) {
+    $(id).disabled = busy;
+  }
+}
+
+/** Reflect sign-in state on the home card: a Sign in button, or who you are. */
+export function setAccount(user) {
+  const line = $('account-line');
+  const btn = $('btn-account');
+  if (user) {
+    btn.textContent = 'Sign out';
+    line.textContent = `Signed in as ${user}`;
+    line.classList.remove('hidden');
+  } else {
+    btn.textContent = 'Sign in';
+    line.textContent = '';
+    line.classList.add('hidden');
+  }
+}
+
 // --- shop -------------------------------------------------------------------
 
 /** Wire the shop's entry and exit buttons. */

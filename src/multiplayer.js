@@ -1,38 +1,22 @@
 // multiplayer.js
 // ---------------------------------------------------------------------------
-// The ONLY module that talks to Firebase. It handles room creation/joining,
-// writing this client's own progress/finish time, and subscribing to the room
-// so we can watch the opponent live. Solo mode never imports this file.
+// The only module that talks to the Realtime Database. It handles room
+// creation/joining, writing this client's own progress/finish time, and
+// subscribing to the room so we can watch the opponent live. Solo mode never
+// imports this file, which is what keeps solo playable with no network at all.
 //
-// The Firebase SDK is loaded straight from the CDN as an ES module, so there is
-// no build step. If you prefer, swap these URLs for locally-vendored copies.
+// The shared FirebaseApp comes from firebaseApp.js (auth.js uses the same one).
 // ---------------------------------------------------------------------------
 
-import { firebaseConfig, isFirebaseConfigured } from './firebaseConfig.js';
-
-const SDK_VERSION = '10.12.2';
-const APP_URL = `https://www.gstatic.com/firebasejs/${SDK_VERSION}/firebase-app.js`;
-const DB_URL = `https://www.gstatic.com/firebasejs/${SDK_VERSION}/firebase-database.js`;
+import { getDb } from './firebaseApp.js';
 
 let db = null; // memoized Realtime Database handle
 let rtdb = null; // memoized set of database functions from the SDK
 
-/**
- * Lazily initialise Firebase and cache both the database handle and the SDK's
- * function bag. Throws a clear error if the config is still the placeholder, so
- * the UI can tell the user to paste their keys instead of failing cryptically.
- */
+/** Lazily resolve the shared database handle and the SDK's function bag. */
 async function ensureDb() {
   if (db) return db;
-  if (!isFirebaseConfigured()) {
-    throw new Error(
-      'Firebase is not configured - paste your keys into src/firebaseConfig.js to play multiplayer.'
-    );
-  }
-  const { initializeApp } = await import(APP_URL);
-  rtdb = await import(DB_URL);
-  const app = initializeApp(firebaseConfig);
-  db = rtdb.getDatabase(app);
+  ({ db, rtdb } = await getDb());
   return db;
 }
 
