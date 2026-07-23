@@ -41,6 +41,31 @@ Any static server works (`npx serve`, VS Code Live Server, etc.).
   room to watch the opponent live. The winner is computed independently by both
   clients from the shared finish times - no server logic.
 - **Rematch** writes a new puzzle to the same room, resetting both players.
+- **Party mode** (up to 12 players) shares a lobby, N rounds of pre-generated
+  puzzles, and a live leaderboard. Each client writes only its own
+  `players/{id}` subtree; the two contended fields (`finishDeadline`, `status`)
+  are flipped through transactions so exactly one client ever wins the race.
+
+### Leaving and rejoining
+
+Your slot in a room is remembered per room code in `localStorage` under
+`tango-room:{CODE}` (6-hour expiry, since 4-character codes get recycled). That
+identity is what makes coming back work:
+
+- Leaving, refreshing, or closing the tab and returning to the same code
+  **re-attaches you to your own slot** rather than creating a second one - in
+  party mode you resume on the round you were actually playing with your earlier
+  round times intact, and in 1v1 you reclaim your original `player1`/`player2`
+  slot instead of always landing in `player2`.
+- New players may join a party while it is in the **lobby** or **finished** (they
+  wait on the leaderboard and are included in the host's next "Play again"). Only
+  a game actively in progress turns strangers away.
+- **Play again** drops players who left and never returned, so the leaderboard
+  does not accumulate ghosts. It runs as a transaction, so someone joining at the
+  same moment is not clobbered.
+- If the host leaves, the earliest-joined remaining player inherits the room -
+  in every state, not just the lobby - so "End game" and "Play again" stay
+  reachable.
 
 ## Architecture
 

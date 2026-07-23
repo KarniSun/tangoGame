@@ -52,9 +52,16 @@ async function roomRef(code) {
   return rtdb.ref(db, `rooms/${code}`);
 }
 
-/** Fresh, empty player node. */
-function newPlayer() {
-  return { progress: 0, finishTime: null, present: true };
+/** Fresh, empty player node. `identity` carries the cosmetics others can see. */
+function newPlayer(present, identity = {}) {
+  return {
+    progress: 0,
+    finishTime: null,
+    present,
+    name: identity.name || 'Player',
+    avatar: identity.avatar || '',
+    title: identity.title || '',
+  };
 }
 
 /**
@@ -62,15 +69,15 @@ function newPlayer() {
  * slots. The room `shape` mirrors the brief:
  *   { puzzle, solution, createdAt, player1, player2 }.
  */
-export async function createRoom(code, game, difficulty) {
+export async function createRoom(code, game, difficulty, identity = {}) {
   const ref = await roomRef(code);
   await rtdb.set(ref, {
     puzzle: game.puzzle,
     solution: game.solution,
     difficulty, // baked in so the joining player sees the host's choice
     createdAt: rtdb.serverTimestamp(),
-    player1: newPlayer(),
-    player2: { progress: 0, finishTime: null, present: false },
+    player1: newPlayer(true, identity),
+    player2: newPlayer(false),
   });
   return 'player1';
 }
@@ -80,15 +87,47 @@ export async function createRoom(code, game, difficulty) {
  * exist, marks player2 present, and returns the shared game plus this client's
  * role so the caller can build an identical GameSession.
  */
-export async function joinRoom(code) {
+export async function joinRoom(code, identity = {}) {
   const ref = await roomRef(code);
   const snap = await rtdb.get(ref);
   if (!snap.exists()) throw new Error(`Room "${code}" not found.`);
   const data = snap.val();
 
-  await rtdb.update(rtdb.ref(db, `rooms/${code}/player2`), { present: true });
+  await rtdb.update(rtdb.ref(db, `rooms/${code}/player2`), {
+    present: true,
+    name: identity.name || 'Player',
+    avatar: identity.avatar || '',
+    title: identity.title || '',
+  });
   return {
     role: 'player2',
+    game: { puzzle: data.puzzle, solution: data.solution },
+    difficulty: data.difficulty ?? null,
+  };
+}
+
+/**
+ * Re-enter a 1v1 room in the slot we previously held. Without this, joinRoom()
+ * always claims player2 - so a HOST who left and came back through their own
+ * link would become player2 too, leaving both clients watching an absent
+ * player1. The in-flight puzzle and our progress/finishTime are left untouched
+ * so the game resumes exactly where we left it.
+ */
+export async function rejoin1v1(code, role, identity = {}) {
+  const ref = await roomRef(code);
+  const snap = await rtdb.get(ref);
+  if (!snap.exists()) throw new Error(`Room "${code}" not found.`);
+  const data = snap.val();
+  if (!data[role]) throw new Error(`Room "${code}" no longer has your slot.`);
+
+  await rtdb.update(rtdb.ref(db, `rooms/${code}/${role}`), {
+    present: true,
+    name: identity.name || data[role].name || 'Player',
+    avatar: identity.avatar || '',
+    title: identity.title || '',
+  });
+  return {
+    role,
     game: { puzzle: data.puzzle, solution: data.solution },
     difficulty: data.difficulty ?? null,
   };
@@ -129,13 +168,21 @@ export async function writeRematch(code, game, difficulty) {
   const ref = await roomRef(code);
   const snap = await rtdb.get(ref);
   const prev = snap.val() || {};
+  // Keep each side's presence AND identity - resetting those would blank the
+  // opponent's name/cosmetics on every rematch.
+  const reset = (p) => ({
+    ...(p || {}),
+    progress: 0,
+    finishTime: null,
+    present: p?.present ?? true,
+  });
   await rtdb.update(ref, {
     puzzle: game.puzzle,
     solution: game.solution,
     difficulty,
     createdAt: rtdb.serverTimestamp(),
-    player1: { progress: 0, finishTime: null, present: prev.player1?.present ?? true },
-    player2: { progress: 0, finishTime: null, present: prev.player2?.present ?? true },
+    player1: reset(prev.player1),
+    player2: reset(prev.player2),
   });
 }
 
@@ -159,7 +206,11 @@ export function opponentRole(role) {
 
 export const MAX_PLAYERS = 12;
 
-/** Random per-client player id (main.js persists it in sessionStorage). */
+/**
+ * Random per-client player id. main.js persists it per room code in
+ * localStorage (see saveRoomIdentity) so leaving and coming back re-attaches to
+ * the SAME player node instead of spawning a duplicate row.
+ */
 export function generatePlayerId() {
   const a = 'abcdefghijklmnopqrstuvwxyz0123456789';
   let id = '';
@@ -175,9 +226,11 @@ async function registerPresence(code, playerId) {
 }
 
 /** A fresh party-player node. */
-function newPartyPlayer(name) {
+function newPartyPlayer(name, identity = {}) {
   return {
     name,
+    avatar: identity.avatar || '',
+    title: identity.title || '',
     present: true,
     joinedAt: rtdb.serverTimestamp(),
     currentRound: 0,
@@ -201,12 +254,15 @@ export async function peekRoom(code) {
     exists: true,
     mode: data.mode || '1v1', // legacy 1v1 rooms have no `mode`
     status: data.status || null,
+    // Lets the caller tell "this room already knows me" (rejoin) from "I am a
+    // stranger" (fresh join) before committing to a flow.
+    playerIds: data.players ? Object.keys(data.players) : [],
     playerCount: data.players ? Object.keys(data.players).length : 0,
   };
 }
 
 /** Create a party room in the lobby state with the host as the first player. */
-export async function createParty(code, { hostId, name, config }) {
+export async function createParty(code, { hostId, name, config, identity }) {
   const ref = await roomRef(code);
   await rtdb.set(ref, {
     mode: 'party',
@@ -217,27 +273,61 @@ export async function createParty(code, { hostId, name, config }) {
     startedAt: null,
     finishDeadline: null,
     endedAt: null,
-    players: { [hostId]: newPartyPlayer(name) },
+    players: { [hostId]: newPartyPlayer(name, identity) },
   });
   await registerPresence(code, hostId);
 }
 
 /**
- * Join a party lobby. Rejects if the room is missing, already started (late
- * join blocked), or full. Returns the current room snapshot.
+ * Join a party as a NEW player. Allowed while the room is in the lobby and also
+ * once it has `finished` - in the finished case you land on the final
+ * leaderboard and are swept into the host's next "Play again". Only a game
+ * actively in progress turns strangers away, since dropping someone into round
+ * N with no time on the clock would be unfair to everyone.
+ *
+ * Returning players do NOT come through here - see rejoinParty.
  */
-export async function joinParty(code, { playerId, name }) {
+export async function joinParty(code, { playerId, name, identity }) {
   const ref = await roomRef(code);
   const snap = await rtdb.get(ref);
   if (!snap.exists()) throw new Error(`Room "${code}" not found.`);
   const data = snap.val();
   if (data.mode !== 'party') throw new Error('That code is not a party room.');
-  if (data.status !== 'lobby') throw new Error('That game has already started.');
+  if (data.status === 'playing') {
+    throw new Error('That game is already in progress - try again when it ends.');
+  }
   if (data.players && Object.keys(data.players).length >= MAX_PLAYERS) {
     throw new Error('That room is full (12 players).');
   }
-  await rtdb.update(rtdb.ref(db, `rooms/${code}/players/${playerId}`), newPartyPlayer(name));
+  await rtdb.update(
+    rtdb.ref(db, `rooms/${code}/players/${playerId}`),
+    newPartyPlayer(name, identity)
+  );
   await registerPresence(code, playerId);
+  return data;
+}
+
+/**
+ * Re-enter a party we already have a player node in, at ANY status - including
+ * mid-game. Only presence and identity are written; currentRound, roundTimes,
+ * done and totalTime are deliberately left alone so the caller can resume the
+ * round we were actually on with our earlier times intact.
+ */
+export async function rejoinParty(code, { playerId, name, identity }) {
+  const ref = await roomRef(code);
+  const snap = await rtdb.get(ref);
+  if (!snap.exists()) throw new Error(`Room "${code}" not found.`);
+  const data = snap.val();
+  if (!data.players || !data.players[playerId]) {
+    throw new Error('You are no longer in that room.');
+  }
+  await rtdb.update(rtdb.ref(db, `rooms/${code}/players/${playerId}`), {
+    present: true,
+    name,
+    avatar: (identity && identity.avatar) || '',
+    title: (identity && identity.title) || '',
+  });
+  await registerPresence(code, playerId); // onDisconnect is per-connection
   return data;
 }
 
@@ -306,28 +396,41 @@ export async function claimHost(code, playerId, oldHostId) {
   await rtdb.runTransaction(href, (cur) => (cur === oldHostId ? playerId : undefined));
 }
 
-/** Host restarts a fresh game for the same room: reset everyone, new puzzles. */
+/**
+ * Host restarts a fresh game for the same room: reset the players who are still
+ * here and hand out new puzzles.
+ *
+ * This runs as a TRANSACTION rather than the read-then-overwrite it used to be.
+ * That old shape had two bugs: it rewrote the whole `players` map, so anyone who
+ * joined between the read and the write was silently wiped; and it reset absent
+ * players too, leaving ghost rows on the leaderboard for people who had left and
+ * were never coming back. Absent players are now dropped instead, and the
+ * transaction retries on conflict so a concurrent join survives.
+ */
 export async function partyPlayAgain(code, rounds) {
   const ref = await roomRef(code);
-  const snap = await rtdb.get(ref);
-  const prev = snap.val() || {};
-  const players = {};
-  for (const [id, p] of Object.entries(prev.players || {})) {
-    players[id] = {
-      ...p,
-      currentRound: 0,
-      progress: 0,
-      roundTimes: [],
-      done: false,
-      totalTime: null,
+  await rtdb.runTransaction(ref, (room) => {
+    if (!room) return room; // room vanished - nothing to restart
+    const players = {};
+    for (const [id, p] of Object.entries(room.players || {})) {
+      if (p.present === false) continue; // drop players who left for good
+      players[id] = {
+        ...p,
+        currentRound: 0,
+        progress: 0,
+        roundTimes: [],
+        done: false,
+        totalTime: null,
+      };
+    }
+    return {
+      ...room,
+      status: 'playing',
+      rounds,
+      startedAt: Date.now(), // serverTimestamp() is not usable inside a transaction
+      finishDeadline: null,
+      endedAt: null,
+      players,
     };
-  }
-  await rtdb.update(ref, {
-    status: 'playing',
-    rounds,
-    startedAt: rtdb.serverTimestamp(),
-    finishDeadline: null,
-    endedAt: null,
-    players,
   });
 }

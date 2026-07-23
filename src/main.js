@@ -45,6 +45,7 @@ let myRole = null;
 let unsubscribe = null;
 let canPlay = false; // gated until both players are present
 let myFinishTime = null; // my elapsed seconds at solve, known before Firebase echoes it
+let oppWasAway = false; // 1v1: opponent left, so their return needs announcing
 
 const HINT_INITIAL = 30; // seconds before the FIRST hint of a puzzle/round
 const HINT_COOLDOWN = 10; // seconds between hints afterwards
@@ -60,6 +61,7 @@ let myRoundTimes = []; // my per-round solve times
 let partyRoom = null; // latest room snapshot (for the countdown ticker)
 let partyStarted = false; // have I entered round 0 of the current game?
 let partyPrevStatus = null; // to detect finished→playing (play again)
+let partyPrevIsHost = null; // to detect inheriting host mid-game
 let partyFinalShown = false;
 let finishRequested = false; // guard so finishParty is only fired once per game
 
@@ -103,7 +105,8 @@ async function startCreate() {
     roomCode = mp.generateRoomCode();
     activeDifficulty = difficulty;
     const game = createGame(DIFFICULTY[difficulty]);
-    myRole = await mp.createRoom(roomCode, game, difficulty);
+    myRole = await mp.createRoom(roomCode, game, difficulty, identity());
+    saveRoomIdentity(roomCode, { role: myRole });
 
     beginGame(game);
     ui.configureGameChrome({ mode });
@@ -117,18 +120,24 @@ async function startCreate() {
 
 // --- join (multiplayer guest) ----------------------------------------------
 
-async function startJoin(code) {
-  mode = 'join';
+async function startJoin(code, savedRole = null) {
+  mode = savedRole === 'player1' ? 'create' : 'join';
   try {
     mp = await import('./multiplayer.js');
     roomCode = code;
-    const { role, game, difficulty: diff } = await mp.joinRoom(code);
+    // A saved role means we were here before: reclaim THAT slot rather than
+    // unconditionally taking player2, which would collide with the real player2.
+    const { role, game, difficulty: diff } = savedRole
+      ? await mp.rejoin1v1(code, savedRole, identity())
+      : await mp.joinRoom(code, identity());
     myRole = role;
     activeDifficulty = diff || 'medium';
+    saveRoomIdentity(code, { role });
 
     beginGame(game);
     ui.configureGameChrome({ mode });
-    ui.setStatus('Get ready…');
+    if (mode === 'create') ui.setShareLink(`${location.origin}${location.pathname}?room=${code}`);
+    ui.setStatus(savedRole ? 'Welcome back…' : 'Get ready…');
     await watchRoom();
   } catch (err) {
     failToHome(err);
@@ -158,6 +167,15 @@ function playerName() {
   localStorage.setItem(NAME_KEY, n);
   ui.setPlayerName(n);
   return n;
+}
+
+/**
+ * Everything about this client that other players can see. Cosmetics are filled
+ * in once the shop exists; until then the fields are written empty so the room
+ * shape is already correct.
+ */
+function identity() {
+  return { name: playerName(), avatar: '', title: '' };
 }
 
 function partyLink() {
@@ -206,7 +224,8 @@ async function startCreateParty() {
     myId = mp.generatePlayerId();
     isHost = true;
     const config = { rounds: 3, difficulty, graceSeconds: 60 };
-    await mp.createParty(roomCode, { hostId: myId, name, config });
+    await mp.createParty(roomCode, { hostId: myId, name, config, identity: identity() });
+    saveRoomIdentity(roomCode, { playerId: myId });
     enterLobby();
     await watchRoom();
   } catch (err) {
@@ -214,7 +233,7 @@ async function startCreateParty() {
   }
 }
 
-/** Join a party's lobby. */
+/** Join a party as a new player (lobby, or between games on the leaderboard). */
 async function joinPartyFlow(code) {
   mode = 'party';
   try {
@@ -223,7 +242,8 @@ async function joinPartyFlow(code) {
     roomCode = code;
     myId = mp.generatePlayerId();
     isHost = false;
-    await mp.joinParty(code, { playerId: myId, name });
+    await mp.joinParty(code, { playerId: myId, name, identity: identity() });
+    saveRoomIdentity(code, { playerId: myId });
     enterLobby();
     await watchRoom();
   } catch (err) {
@@ -231,17 +251,44 @@ async function joinPartyFlow(code) {
   }
 }
 
-/** Route a typed/shared code to the right flow by peeking at the room's mode. */
+/** Re-enter a party we already hold a slot in, at whatever status it is now. */
+async function rejoinPartyFlow(code, playerId) {
+  mode = 'party';
+  try {
+    mp = await import('./multiplayer.js');
+    roomCode = code;
+    myId = playerId;
+    await mp.rejoinParty(code, { playerId, name: playerName(), identity: identity() });
+    saveRoomIdentity(code, { playerId });
+    // Don't force the lobby screen - the subscription puts us on the right one
+    // (lobby, mid-game round, or final leaderboard) from the room's status.
+    enterLobby();
+    await watchRoom();
+  } catch (err) {
+    failToHome(err);
+  }
+}
+
+/**
+ * Route a typed/shared code to the right flow. A previously-saved identity for
+ * this code means we are RETURNING, so we re-attach to our old slot whatever
+ * the room's status; only genuine strangers face the join gates.
+ */
 async function routeJoin(code) {
   try {
     mp = await import('./multiplayer.js');
     const info = await mp.peekRoom(code);
     if (!info.exists) throw new Error(`Room "${code}" not found.`);
+    const saved = loadRoomIdentity(code);
+
     if (info.mode === 'party') {
-      if (info.status !== 'lobby') throw new Error('That game has already started.');
-      await joinPartyFlow(code);
+      if (saved && saved.playerId && info.playerIds.includes(saved.playerId)) {
+        await rejoinPartyFlow(code, saved.playerId);
+      } else {
+        await joinPartyFlow(code);
+      }
     } else {
-      await startJoin(code);
+      await startJoin(code, saved && saved.role ? saved.role : null);
     }
   } catch (err) {
     failToHome(err);
@@ -252,6 +299,7 @@ function enterLobby() {
   partyStarted = false;
   partyFinalShown = false;
   partyPrevStatus = null;
+  partyPrevIsHost = null;
   finishRequested = false;
   myRound = 0;
   myRoundTimes = [];
@@ -285,9 +333,11 @@ async function hostStartParty() {
 function onPartyRoomUpdate(room) {
   partyRoom = room;
   isHost = room.hostId === myId;
+  // Runs in every state, not just the lobby: if the host walks out mid-game,
+  // someone has to inherit "End game" and "Play again" or the room is stuck.
+  maybeMigrateHost(room);
 
   if (room.status === 'lobby') {
-    maybeMigrateHost(room);
     const players = presentSortedByJoin(room).map(([id, p]) => ({
       name: p.name,
       isMe: id === myId,
@@ -304,11 +354,12 @@ function onPartyRoomUpdate(room) {
       partyRounds = room.rounds || [];
       partyConfig = room.config || {};
       activeDifficulty = partyConfig.difficulty || 'medium';
-      myRound = 0;
-      myRoundTimes = [];
       ui.hideLeaderboard();
-      startPartyRound(0);
+      resumeFromMyNode(room);
     }
+    // Inheriting the host mid-game has to surface "End game" right away - the
+    // chrome is otherwise only configured at the start of a round.
+    if (isHost !== partyPrevIsHost) ui.configureGameChrome({ mode: 'party', isHost });
     ui.renderLiveStandings(buildRows(room, 'live'));
     updatePartyCountdown(room);
   } else if (room.status === 'finished') {
@@ -316,6 +367,7 @@ function onPartyRoomUpdate(room) {
   }
 
   partyPrevStatus = room.status;
+  partyPrevIsHost = isHost;
 }
 
 /** Present players, earliest-joined first. */
@@ -333,6 +385,31 @@ function maybeMigrateHost(room) {
   if (present.length && present[0][0] === myId) {
     mp.claimHost(roomCode, myId, room.hostId).catch(() => {});
   }
+}
+
+/**
+ * Enter the running game at whatever point our OWN player node says we reached.
+ * On a fresh start that node is empty, so this is just "round 0"; for someone
+ * who left and came back it restores their completed round times and drops them
+ * back on the round they were actually playing, instead of silently resetting
+ * them to round 1 the way this used to.
+ */
+function resumeFromMyNode(room) {
+  const me = (room.players || {})[myId] || {};
+  myRoundTimes = Array.isArray(me.roundTimes) ? me.roundTimes : [];
+  myRound = Math.min(myRoundTimes.length, partyRounds.length);
+
+  if (me.done || myRound >= partyRounds.length) {
+    // Already through every round - show the last board, locked, and wait it
+    // out. beginGame() leaves canPlay false outside solo, which is what we want.
+    beginGame(partyRounds[partyRounds.length - 1]);
+    ui.configureGameChrome({ mode: 'party', isHost });
+    const total = myRoundTimes.reduce((a, b) => a + b, 0);
+    ui.setStatus(`You finished! Total ${fmtTotal(total)} - waiting for others…`);
+    return;
+  }
+  startPartyRound(myRound);
+  if (myRound > 0) ui.setStatus(`Welcome back - round ${myRound + 1} of ${partyRounds.length}`);
 }
 
 /** Start (or instantly advance to) round k of the party. */
@@ -483,6 +560,7 @@ function beginGame(game) {
   finished = false;
   fullHintShown = false;
   myFinishTime = null;
+  oppWasAway = false;
   canPlay = mode === 'solo'; // multiplayer unlocks once both are present
   session = new GameSession();
   session.startNewPuzzle(game);
@@ -637,13 +715,20 @@ function onRoomUpdate(room) {
 
   ui.updateOpponent(opp);
 
-  // Start the shared clock the moment both players are present.
-  if (!canPlay && me.present && opp.present) {
+  // Start the shared clock the moment both players are present. The "came back"
+  // arm matters because canPlay is already true by then, so without it the
+  // stale "waiting" line would sit there for the whole rest of the game.
+  if (!opp.present) {
+    ui.setStatus('Waiting for opponent to join…');
+    oppWasAway = true;
+  } else if (!canPlay && me.present) {
     canPlay = true;
     session.startTimer();
     ui.setStatus('Go!');
-  } else if (!opp.present) {
-    ui.setStatus('Waiting for opponent to join…');
+    oppWasAway = false;
+  } else if (oppWasAway) {
+    ui.setStatus('Opponent is back!');
+    oppWasAway = false;
   }
 
   if (!finished) resolveMultiplayer(me, opp);
@@ -769,6 +854,38 @@ function saveBestIfBetter(seconds) {
   return best;
 }
 
+// --- room identity (so leaving and coming back re-attaches to your own slot) --
+// Keyed per room code. localStorage rather than sessionStorage so closing the
+// tab entirely still lets you back in. Room codes are only 4 characters and get
+// recycled, so entries expire - otherwise a stale code could bind you to a
+// stranger's slot in someone else's room.
+
+const ROOM_ID_PREFIX = 'tango-room:';
+const ROOM_ID_TTL = 6 * 60 * 60 * 1000; // 6 hours
+
+function saveRoomIdentity(code, slot) {
+  try {
+    localStorage.setItem(ROOM_ID_PREFIX + code, JSON.stringify({ ...slot, savedAt: Date.now() }));
+  } catch {
+    /* storage full or blocked - rejoin just won't be available */
+  }
+}
+
+function loadRoomIdentity(code) {
+  try {
+    const raw = localStorage.getItem(ROOM_ID_PREFIX + code);
+    if (!raw) return null;
+    const saved = JSON.parse(raw);
+    if (!saved || Date.now() - (saved.savedAt || 0) > ROOM_ID_TTL) {
+      localStorage.removeItem(ROOM_ID_PREFIX + code);
+      return null;
+    }
+    return saved;
+  } catch {
+    return null;
+  }
+}
+
 // --- teardown / navigation --------------------------------------------------
 
 function goHome() {
@@ -799,6 +916,7 @@ function cleanupRoom() {
   partyRoom = null;
   partyStarted = false;
   partyPrevStatus = null;
+  partyPrevIsHost = null;
   partyFinalShown = false;
   finishRequested = false;
 }
