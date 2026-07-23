@@ -17,6 +17,12 @@ python3 -m http.server 5178
 
 Any static server works (`npx serve`, VS Code Live Server, etc.).
 
+> `python3 -m http.server` sends no cache headers, so browsers may hold on to an
+> old copy of an ES module after you edit it and leave you debugging code that is
+> no longer running. If a change seems to have no effect, hard-reload
+> (<kbd>Cmd/Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd>) or use a server that sends
+> `Cache-Control: no-store`.
+
 - **Practice Solo** works immediately - no Firebase needed.
 - **Create Game / Join** need Firebase configured (see below).
 
@@ -67,6 +73,27 @@ identity is what makes coming back work:
   in every state, not just the lobby - so "End game" and "Play again" stay
   reachable.
 
+## Coins
+
+Every finished game pays out, and the balance is kept in `localStorage` under
+`tango-profile`. The whole economy lives in one table at the top of
+[`src/wallet.js`](src/wallet.js):
+
+| Difficulty | Easy | Medium | Hard | Expert |
+| --- | --- | --- | --- | --- |
+| Base | 5 | 10 | 20 | 35 |
+
+Solo pays the base; 1v1 and party pay double it. On top of that, a duel win pays
+×1.5 (tie ×1.25, a loss still pays the full unit), and a party pays per round
+completed plus a placement bonus of +100% / +50% / +25% for the top three.
+
+**Nobody leaves empty-handed.** A player who never finishes still earns a share
+scaled by how much of the board they had right, with a floor of 1 coin - a game
+you cannot profit from is a game people quit halfway through.
+
+`loadProfile()` / `saveProfile()` in `wallet.js` are the only two functions that
+touch storage, which is the seam an account-backed sync would replace.
+
 ## Architecture
 
 Puzzle generation, solving, and rule validation live in **one** place
@@ -80,6 +107,7 @@ and multiplayer. The engine is pure (no DOM/Firebase) and unit-testable.
 | `src/boardRenderer.js` | DOM rendering of the board + clue badges |
 | `src/ui.js` | Screen switching, timer/panel display, result modal |
 | `src/multiplayer.js` | The only file that talks to Firebase |
+| `src/wallet.js` | Coin balance, ownership, and the payout table |
 | `src/firebaseConfig.js` | Firebase config object |
 | `src/main.js` | Entry point - wires modules together per mode |
 

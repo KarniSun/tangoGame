@@ -10,6 +10,7 @@ import { GameSession } from './gameSession.js';
 import { createGame, EMPTY } from './puzzleEngine.js';
 import { renderBoard } from './boardRenderer.js';
 import * as ui from './ui.js';
+import * as wallet from './wallet.js';
 
 const BEST_KEY = 'tango-best-time';
 const NAME_KEY = 'tango-name';
@@ -64,12 +65,15 @@ let partyPrevStatus = null; // to detect finished→playing (play again)
 let partyPrevIsHost = null; // to detect inheriting host mid-game
 let partyFinalShown = false;
 let finishRequested = false; // guard so finishParty is only fired once per game
+let awardedGameKey = null; // room.endedAt of the game we have already paid out
+let partyEarned = null; // that payout, so re-renders show it without re-paying
 
 // --- boot -------------------------------------------------------------------
 
 ui.setupHome({ onSolo: startSolo, onCreate: startCreate, onParty: startCreateParty, onJoin: routeJoin });
 ui.setupDifficulty((level) => (difficulty = level));
 ui.setPlayerName(localStorage.getItem(NAME_KEY) || '');
+ui.setCoins(wallet.getCoins());
 setupResultDismiss();
 setupGameControls();
 setupPartyControls();
@@ -301,6 +305,7 @@ function enterLobby() {
   partyPrevStatus = null;
   partyPrevIsHost = null;
   finishRequested = false;
+  partyEarned = null;
   myRound = 0;
   myRoundTimes = [];
   stopTicker();
@@ -531,9 +536,34 @@ function showPartyFinal(room) {
   canPlay = false;
   stopTicker();
   ui.hideCountdown();
+  const rows = buildRows(room, 'final');
+
+  // This runs on EVERY room event while the room sits at 'finished', so the
+  // payout is keyed to the specific game that ended. startedAt (not endedAt) is
+  // the key: finishParty writes status and endedAt as two separate operations,
+  // so there is a window where the room reads 'finished' with endedAt still
+  // null - keying on that would change the key mid-modal and pay twice.
+  // startedAt is written once per game and is stable until the next one.
+  const gameKey = String(room.startedAt || room.endedAt || '');
+  let earned = partyEarned;
+  if (gameKey && gameKey !== awardedGameKey) {
+    awardedGameKey = gameKey;
+    const myRow = rows.find((r) => r.isMe);
+    earned = awardCoins({
+      mode: 'party',
+      difficulty: activeDifficulty,
+      roundsDone: myRoundTimes.length,
+      totalRounds: partyRounds.length,
+      progress: session ? session.getProgress() : 0,
+      rank: myRow ? myRow.rank : null,
+    });
+    partyEarned = earned;
+  }
+
   ui.showLeaderboard({
     title: 'Final results',
-    rows: buildRows(room, 'final'),
+    rows,
+    coins: earned,
     primaryLabel: 'Play again',
     onPrimary: isHost ? partyPlayAgainAction : null,
     onHome: goHome,
@@ -744,8 +774,10 @@ function resolveMultiplayer(me, opp) {
   if (mine == null && theirs == null) return;
 
   let title;
+  let outcome;
   if (mine != null && theirs != null && mine === theirs) {
     title = "It's a tie! 🤝"; // exact same time - both clients agree it's a draw
+    outcome = 'tie';
   } else {
     let iWon;
     if (mine != null && theirs != null) {
@@ -756,6 +788,9 @@ function resolveMultiplayer(me, opp) {
       iWon = false; // opponent finished first
     }
     title = iWon ? 'You won! 🎉' : 'Opponent won - better luck next time';
+    // Losing still pays, but only solving pays full - 'unfinished' scales the
+    // payout by how much of the board I had actually got right.
+    outcome = iWon ? 'win' : mine != null ? 'loss' : 'unfinished';
   }
 
   const mineStr = mine != null ? ui.formatTime(mine) : '-';
@@ -763,9 +798,16 @@ function resolveMultiplayer(me, opp) {
 
   finished = true;
   stopTicker();
+  const earned = awardCoins({
+    mode: 'duel',
+    difficulty: activeDifficulty,
+    outcome,
+    progress: session.getProgress(),
+  });
   ui.showResult({
     title,
     message: `You: ${mineStr}  ·  Opponent: ${theirsStr}`,
+    coins: earned,
     rematchLabel: 'Rematch',
     onRematch: doRematch,
     onHome: goHome,
@@ -803,11 +845,13 @@ function resolveSolo() {
   const seconds = session.getElapsedTime();
   const best = saveBestIfBetter(seconds);
   ui.setBest(best);
+  const earned = awardCoins({ mode: 'solo', difficulty: activeDifficulty });
   ui.showResult({
     title: 'Solved! 🎉',
     message: `Your time: ${ui.formatTime(seconds)}${
       best === seconds ? '  ·  New personal best!' : ''
     }`,
+    coins: earned,
     rematchLabel: 'New Puzzle',
     onRematch: () => {
       ui.hideResult();
@@ -837,6 +881,18 @@ function tick() {
 }
 function refreshSelf() {
   if (session) ui.updateSelf(session.getElapsedTime(), session.getProgress());
+}
+
+// --- coins ------------------------------------------------------------------
+
+/**
+ * Pay out for a finished game and refresh the home balance. Returns the amount
+ * so the caller can show it in whichever modal it is about to open.
+ */
+function awardCoins(args) {
+  const earned = wallet.computeReward(args);
+  ui.setCoins(wallet.addCoins(earned));
+  return earned;
 }
 
 // --- personal best (solo, localStorage) ------------------------------------
@@ -919,6 +975,8 @@ function cleanupRoom() {
   partyPrevIsHost = null;
   partyFinalShown = false;
   finishRequested = false;
+  awardedGameKey = null;
+  partyEarned = null;
 }
 
 function failToHome(err) {

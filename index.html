@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
     <title>Tango Duel</title>
-    <link rel="stylesheet" href="style.css?v=16" />
+    <link rel="stylesheet" href="style.css?v=17" />
   </head>
   <body>
     <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle dark mode">🌙</button>
@@ -14,6 +14,13 @@
       <div class="home-card">
         <h1 class="logo">Tango<span>Duel</span></h1>
         <p class="tagline">Race friends to solve the same sun &amp; moon puzzle.</p>
+
+        <div class="coin-row">
+          <span class="coin-pill" title="Coins you have earned">
+            <span aria-hidden="true">🪙</span>
+            <span id="coin-balance">0</span>
+          </span>
+        </div>
 
         <input
           id="player-name"
@@ -171,6 +178,7 @@
       <div class="modal-card">
         <h2 id="result-title">Solved!</h2>
         <p id="result-message"></p>
+        <p id="result-coins" class="coins-line hidden"></p>
         <div class="modal-actions">
           <button id="result-rematch" class="btn btn-primary">Rematch</button>
           <button id="result-home" class="btn btn-ghost">Home</button>
@@ -183,6 +191,7 @@
       <div class="modal-card">
         <h2 id="leaderboard-title">Final results</h2>
         <div id="leaderboard-list" class="lb-list"></div>
+        <p id="leaderboard-coins" class="coins-line hidden"></p>
         <div class="modal-actions">
           <button id="leaderboard-primary" class="btn btn-primary">Play again</button>
           <button id="leaderboard-home" class="btn btn-ghost">Home</button>

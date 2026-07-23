@@ -131,6 +131,34 @@ body {
   margin: 0 0 8px;
   color: var(--muted);
 }
+/* --- coins ----------------------------------------------------------------- */
+
+.coin-row {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin: -4px 0 2px;
+}
+.coin-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  border-radius: 999px;
+  background: var(--pill-bg);
+  border: 1px solid var(--border);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+/* The "+N coins" line in the result and leaderboard modals. */
+.coins-line {
+  margin: 6px 0 0;
+  font-weight: 800;
+  color: var(--sun);
+  font-variant-numeric: tabular-nums;
+}
+
 .join-row {
   display: flex;
   gap: 8px;

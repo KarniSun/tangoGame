@@ -129,13 +129,31 @@ export function setHomeError(text) {
   $('home-error').textContent = text || '';
 }
 
+/** Refresh the coin balance shown on the home card. */
+export function setCoins(amount) {
+  $('coin-balance').textContent = String(amount);
+}
+
+/** Fill (or hide) one of the "+N coins earned" lines. */
+function setCoinsLine(id, earned) {
+  const el = $(id);
+  if (earned == null) {
+    el.classList.add('hidden');
+    return;
+  }
+  el.textContent = `🪙 +${earned} coin${earned === 1 ? '' : 's'}`;
+  el.classList.remove('hidden');
+}
+
 /**
  * Show the result modal. `onRematch` may be null to hide the rematch button
- * (used by solo, which shows "New Puzzle" instead).
+ * (used by solo, which shows "New Puzzle" instead). `coins` is the payout for
+ * the game that just ended, or null to show no coin line at all.
  */
-export function showResult({ title, message, rematchLabel, onRematch, onHome }) {
+export function showResult({ title, message, coins = null, rematchLabel, onRematch, onHome }) {
   $('result-title').textContent = title;
   $('result-message').textContent = message;
+  setCoinsLine('result-coins', coins);
 
   const rematchBtn = $('result-rematch');
   if (onRematch) {
@@ -291,11 +309,12 @@ export function flashRoundToast(text) {
 }
 
 /** Show the full final leaderboard. `onPrimary` null hides the primary button. */
-export function showLeaderboard({ title, rows, primaryLabel, onPrimary, onHome }) {
+export function showLeaderboard({ title, rows, coins = null, primaryLabel, onPrimary, onHome }) {
   $('leaderboard-title').textContent = title;
   const list = $('leaderboard-list');
   list.innerHTML = '';
   rows.forEach((r) => list.appendChild(rowEl(r)));
+  setCoinsLine('leaderboard-coins', coins);
 
   const pr = $('leaderboard-primary');
   if (onPrimary) {
