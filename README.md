@@ -94,6 +94,31 @@ you cannot profit from is a game people quit halfway through.
 `loadProfile()` / `saveProfile()` in `wallet.js` are the only two functions that
 touch storage, which is the seam an account-backed sync would replace.
 
+## Cosmetics
+
+Coins buy cosmetics from the **Shop** on the home screen, catalogued in
+[`src/cosmetics.js`](src/cosmetics.js). Four slots, one equipped item each:
+
+| Slot | What it changes | Seen by others |
+| --- | --- | --- |
+| Sun & moon | `--sun` / `--moon` | no |
+| Board theme | `--cell-bg`, `--given-bg`, `--line`, `--cream` | no |
+| Avatar | an emoji beside your name | **yes** |
+| Title | a small tag beside your name | **yes** |
+
+Skins and themes are nothing but CSS custom properties written onto `<html>`, so
+equipping one restyles the game with no re-render. This is why the sun and moon
+SVGs in `boardRenderer.js` use `fill="var(--sun)"` rather than literal hex.
+
+Board themes must define **both** a `light` and a `dark` variant. They override
+the same variables the dark palette sets, and an inline style on `:root` beats
+any stylesheet rule - so a one-variant theme would silently break the light/dark
+toggle. `applyCosmetics()` picks the right variant and is re-run on every theme
+change.
+
+Avatars and titles ride along in each room's player node, which is how they reach
+other players' lobbies and leaderboards.
+
 ## Architecture
 
 Puzzle generation, solving, and rule validation live in **one** place
@@ -108,6 +133,7 @@ and multiplayer. The engine is pure (no DOM/Firebase) and unit-testable.
 | `src/ui.js` | Screen switching, timer/panel display, result modal |
 | `src/multiplayer.js` | The only file that talks to Firebase |
 | `src/wallet.js` | Coin balance, ownership, and the payout table |
+| `src/cosmetics.js` | Shop catalog + applying equipped items as CSS variables |
 | `src/firebaseConfig.js` | Firebase config object |
 | `src/main.js` | Entry point - wires modules together per mode |
 

@@ -11,6 +11,7 @@ import { createGame, EMPTY } from './puzzleEngine.js';
 import { renderBoard } from './boardRenderer.js';
 import * as ui from './ui.js';
 import * as wallet from './wallet.js';
+import * as cosmetics from './cosmetics.js';
 
 const BEST_KEY = 'tango-best-time';
 const NAME_KEY = 'tango-name';
@@ -74,6 +75,7 @@ ui.setupHome({ onSolo: startSolo, onCreate: startCreate, onParty: startCreatePar
 ui.setupDifficulty((level) => (difficulty = level));
 ui.setPlayerName(localStorage.getItem(NAME_KEY) || '');
 ui.setCoins(wallet.getCoins());
+ui.setupShop({ onOpen: showShop, onBack: () => ui.showScreen('home') });
 setupResultDismiss();
 setupGameControls();
 setupPartyControls();
@@ -174,12 +176,17 @@ function playerName() {
 }
 
 /**
- * Everything about this client that other players can see. Cosmetics are filled
- * in once the shop exists; until then the fields are written empty so the room
- * shape is already correct.
+ * Everything about this client that other players can see: display name plus
+ * the cosmetics worn in the shared slots. Written into the room's player node,
+ * which is how opponents' avatars and titles reach the leaderboard.
  */
 function identity() {
-  return { name: playerName(), avatar: '', title: '' };
+  const equipped = wallet.getEquipped();
+  return {
+    name: playerName(),
+    avatar: cosmetics.avatarOf(equipped),
+    title: cosmetics.titleOf(equipped),
+  };
 }
 
 function partyLink() {
@@ -345,6 +352,8 @@ function onPartyRoomUpdate(room) {
   if (room.status === 'lobby') {
     const players = presentSortedByJoin(room).map(([id, p]) => ({
       name: p.name,
+      avatar: p.avatar || '',
+      title: p.title || '',
       isMe: id === myId,
       isHost: id === room.hostId,
     }));
@@ -487,6 +496,8 @@ function buildRows(room, context) {
     return {
       id,
       name: p.name || 'Player',
+      avatar: p.avatar || '',
+      title: p.title || '',
       present: p.present !== false,
       done: !!p.done,
       roundsDone: times.length,
@@ -516,6 +527,8 @@ function buildRows(room, context) {
     return {
       rank: i + 1,
       name: p.name,
+      avatar: p.avatar,
+      title: p.title,
       label,
       tone,
       time: p.roundsDone || p.done ? fmtTotal(p.sum) : '',
@@ -895,6 +908,49 @@ function awardCoins(args) {
   return earned;
 }
 
+// --- shop -------------------------------------------------------------------
+
+/** Push the equipped symbol/board variables onto <html> for the active theme. */
+function refreshCosmetics() {
+  cosmetics.applyCosmetics(wallet.getEquipped(), isDarkNow());
+}
+
+/** Build the shop's view model from the catalog plus what we own and wear. */
+function showShop() {
+  const equipped = wallet.getEquipped();
+  const groups = cosmetics.SLOTS.map((slot) => ({
+    slot,
+    label: cosmetics.SLOT_LABEL[slot],
+    items: cosmetics.bySlot(slot).map((item) => ({
+      ...item,
+      owned: cosmetics.isFree(item.id) || wallet.owns(item.id),
+      equipped: cosmetics.equippedIn(equipped, slot).id === item.id,
+    })),
+  }));
+  ui.renderShop({
+    groups,
+    coins: wallet.getCoins(),
+    isDark: isDarkNow(),
+    onBuy: handleBuy,
+    onEquip: handleEquip,
+  });
+  ui.showScreen('shop');
+}
+
+function handleBuy(item) {
+  const res = wallet.buy(item.id, item.price, item.slot);
+  if (!res.ok) return; // insufficient funds - the button was already disabled
+  ui.setCoins(res.coins);
+  refreshCosmetics();
+  showShop(); // re-render so the card flips to "Equipped"
+}
+
+function handleEquip(item) {
+  wallet.equip(item.slot, item.id);
+  refreshCosmetics();
+  showShop();
+}
+
 // --- personal best (solo, localStorage) ------------------------------------
 
 function loadBest() {
@@ -1033,6 +1089,9 @@ function applyTheme(theme) {
   if (theme === 'light' || theme === 'dark') root.setAttribute('data-theme', theme);
   else root.removeAttribute('data-theme');
   updateThemeIcon();
+  // Board themes ship a light and a dark variant, so the equipped one has to be
+  // re-applied whenever the theme flips.
+  refreshCosmetics();
 }
 
 function isDarkNow() {

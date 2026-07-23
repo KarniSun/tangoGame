@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
     <title>Tango Duel</title>
-    <link rel="stylesheet" href="style.css?v=17" />
+    <link rel="stylesheet" href="style.css?v=19" />
   </head>
   <body>
     <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle dark mode">🌙</button>
@@ -20,6 +20,7 @@
             <span aria-hidden="true">🪙</span>
             <span id="coin-balance">0</span>
           </span>
+          <button id="btn-shop" class="btn btn-small" type="button">Shop</button>
         </div>
 
         <input
@@ -107,6 +108,21 @@
       </div>
     </section>
 
+    <!-- SHOP ---------------------------------------------------------------->
+    <section id="screen-shop" class="screen">
+      <div class="shop-card">
+        <div class="shop-head">
+          <h2 class="shop-title">Shop</h2>
+          <span class="coin-pill" title="Coins you have earned">
+            <span aria-hidden="true">🪙</span>
+            <span id="shop-balance">0</span>
+          </span>
+        </div>
+        <div id="shop-groups" class="shop-groups"></div>
+        <button id="btn-shop-back" class="btn btn-ghost btn-small">Back</button>
+      </div>
+    </section>
+
     <!-- GAME ---------------------------------------------------------------->
     <section id="screen-game" class="screen">
       <header class="topbar">
@@ -117,7 +133,9 @@
             <div class="progress"><div class="progress-fill" id="you-progress"></div></div>
           </div>
           <div class="panel" id="opponent-panel">
-            <div class="panel-label">Opponent <span id="opp-status" class="muted"></span></div>
+            <div class="panel-label">
+              <span id="opp-name">Opponent</span> <span id="opp-status" class="muted"></span>
+            </div>
             <div class="panel-timer" id="opp-timer">-</div>
             <div class="progress"><div class="progress-fill opp" id="opp-progress"></div></div>
           </div>

@@ -93,6 +93,11 @@ export function updateSelf(seconds, progressFraction) {
 /** Update the opponent panel from the room snapshot's player node. */
 export function updateOpponent(player) {
   const present = player && player.present;
+  // Show who you are actually racing once they have joined, rather than a
+  // permanent "Opponent" label.
+  const name = (player && player.name) || '';
+  const avatar = (player && player.avatar) || '';
+  $('opp-name').textContent = present && name ? (avatar ? `${avatar} ${name}` : name) : 'Opponent';
   $('opp-status').textContent = present ? '' : 'waiting…';
   $('opp-progress').style.width = `${Math.round((player?.progress || 0) * 100)}%`;
   $('opp-timer').textContent =
@@ -129,9 +134,10 @@ export function setHomeError(text) {
   $('home-error').textContent = text || '';
 }
 
-/** Refresh the coin balance shown on the home card. */
+/** Refresh the coin balance shown on the home card and in the shop header. */
 export function setCoins(amount) {
   $('coin-balance').textContent = String(amount);
+  $('shop-balance').textContent = String(amount);
 }
 
 /** Fill (or hide) one of the "+N coins earned" lines. */
@@ -183,6 +189,18 @@ function rowEl(e) {
   const nm = document.createElement('span');
   nm.className = 'nm';
   nm.textContent = e.name;
+  if (e.avatar) {
+    const av = document.createElement('span');
+    av.className = 'av';
+    av.textContent = e.avatar;
+    nm.prepend(av);
+  }
+  if (e.title) {
+    const ti = document.createElement('span');
+    ti.className = 'ttl';
+    ti.textContent = e.title;
+    nm.append(ti);
+  }
   const tag = document.createElement('span');
   tag.className = `tag tag-${e.tone || 'solving'}`;
   tag.textContent = e.label;
@@ -221,6 +239,18 @@ export function renderLobby({ code, players, config, isHost }) {
     const chip = document.createElement('span');
     chip.className = 'pchip' + (p.isMe ? ' me' : '');
     chip.textContent = p.name;
+    if (p.avatar) {
+      const av = document.createElement('span');
+      av.className = 'av';
+      av.textContent = p.avatar;
+      chip.prepend(av);
+    }
+    if (p.title) {
+      const ti = document.createElement('span');
+      ti.className = 'ttl';
+      ti.textContent = p.title;
+      chip.appendChild(ti);
+    }
     if (p.isHost) {
       const star = document.createElement('span');
       star.className = 'pchip-host';
@@ -273,6 +303,93 @@ export function renderLiveStandings(rows) {
     strip.classList.toggle('expanded');
     setHint();
   };
+}
+
+// --- shop -------------------------------------------------------------------
+
+/** Wire the shop's entry and exit buttons. */
+export function setupShop({ onOpen, onBack }) {
+  $('btn-shop').addEventListener('click', onOpen);
+  $('btn-shop-back').addEventListener('click', onBack);
+}
+
+/** A small visual preview so items are judged by look, not by name. */
+function swatchFor(item, isDark) {
+  const sw = document.createElement('span');
+  sw.className = 'swatch';
+  if (item.slot === 'symbols') {
+    const sun = document.createElement('i');
+    sun.style.background = item.vars['--sun'];
+    const moon = document.createElement('i');
+    moon.style.background = item.vars['--moon'];
+    sw.append(sun, moon);
+  } else if (item.slot === 'board') {
+    const v = isDark ? item.dark : item.light;
+    sw.style.background = v['--cream'];
+    sw.style.borderColor = v['--line'];
+    const cell = document.createElement('i');
+    cell.style.background = v['--cell-bg'];
+    const given = document.createElement('i');
+    given.style.background = v['--given-bg'];
+    sw.append(cell, given);
+  } else {
+    sw.classList.add('swatch-text');
+    sw.textContent = item.emoji || item.text || '-';
+  }
+  return sw;
+}
+
+/**
+ * Render the shop. `groups` is [{ slot, label, items }]; each item is a catalog
+ * entry plus `owned` and `equipped` flags so this stays a pure view.
+ */
+export function renderShop({ groups, coins, isDark, onBuy, onEquip }) {
+  const host = $('shop-groups');
+  host.innerHTML = '';
+
+  groups.forEach((group) => {
+    const section = document.createElement('div');
+    section.className = 'shop-group';
+
+    const h = document.createElement('h3');
+    h.className = 'shop-group-title';
+    h.textContent = group.label;
+    section.appendChild(h);
+
+    const grid = document.createElement('div');
+    grid.className = 'shop-grid';
+
+    group.items.forEach((item) => {
+      const card = document.createElement('div');
+      card.className = 'shop-item' + (item.equipped ? ' equipped' : '');
+      card.appendChild(swatchFor(item, isDark));
+
+      const name = document.createElement('span');
+      name.className = 'shop-item-name';
+      name.textContent = item.name;
+      card.appendChild(name);
+
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn btn-small shop-btn';
+      if (item.equipped) {
+        btn.textContent = 'Equipped';
+        btn.disabled = true;
+      } else if (item.owned) {
+        btn.textContent = 'Equip';
+        btn.onclick = () => onEquip(item);
+      } else {
+        btn.textContent = `🪙 ${item.price}`;
+        btn.disabled = coins < item.price;
+        btn.onclick = () => onBuy(item);
+      }
+      card.appendChild(btn);
+      grid.appendChild(card);
+    });
+
+    section.appendChild(grid);
+    host.appendChild(section);
+  });
 }
 
 function fmtClock(seconds) {

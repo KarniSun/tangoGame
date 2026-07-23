@@ -8,16 +8,19 @@
 
 import { EMPTY, SUN, MOON, SIZE, isGiven } from './puzzleEngine.js';
 
-// Flat, gradient-free icon markup, matching the minimal Tango look.
+// Flat, gradient-free icon markup, matching the minimal Tango look. The colours
+// come from the --sun / --moon custom properties rather than literal hex values,
+// which is what lets a purchased symbol skin restyle the board by overriding two
+// variables - no re-render, and dark mode keeps working untouched.
 const SUN_SVG = `
   <svg viewBox="0 0 100 100" class="symbol sun" aria-label="sun">
-    <circle cx="50" cy="50" r="20" fill="#F5C518"/>
+    <circle cx="50" cy="50" r="20" fill="var(--sun)"/>
     ${rays()}
   </svg>`;
 
 const MOON_SVG = `
   <svg viewBox="0 0 100 100" class="symbol moon" aria-label="moon">
-    <path d="M62 24a30 30 0 1 0 0 52 24 24 0 1 1 0-52z" fill="#3B82C4"/>
+    <path d="M62 24a30 30 0 1 0 0 52 24 24 0 1 1 0-52z" fill="var(--moon)"/>
   </svg>`;
 
 function rays() {
@@ -28,7 +31,7 @@ function rays() {
     const y1 = 50 + Math.sin(a) * 27;
     const x2 = 50 + Math.cos(a) * 36;
     const y2 = 50 + Math.sin(a) * 36;
-    out += `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="#F5C518" stroke-width="6" stroke-linecap="round"/>`;
+    out += `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="var(--sun)" stroke-width="6" stroke-linecap="round"/>`;
   }
   return out;
 }

@@ -159,6 +159,111 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* --- shop ------------------------------------------------------------------ */
+
+.shop-card {
+  width: 100%;
+  max-width: 520px;
+  margin: 4vh auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.shop-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.shop-title {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 800;
+}
+.shop-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.shop-group-title {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--muted);
+}
+.shop-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 10px;
+}
+.shop-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.shop-item.equipped {
+  border-color: var(--moon);
+  box-shadow: inset 0 0 0 1px var(--moon);
+}
+.shop-item-name {
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-align: center;
+}
+.shop-btn {
+  width: 100%;
+  padding: 5px 6px;
+  font-size: 0.78rem;
+}
+/* Preview tile: two dots for symbol skins, two panes for board themes. */
+.swatch {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: 100%;
+  height: 40px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.swatch i {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  display: block;
+}
+.swatch-text {
+  font-size: 1.2rem;
+  font-weight: 800;
+  background: var(--pill-bg);
+}
+
+/* --- avatars / titles on chips and leaderboard rows ------------------------ */
+
+.av {
+  margin-right: 5px;
+}
+.ttl {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--pill-bg);
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+}
+
 .join-row {
   display: flex;
   gap: 8px;
