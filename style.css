@@ -10,6 +10,11 @@
   --cell-bg: #ffffff; /* empty cell */
   --sun: #f5c518;
   --moon: #3b82c4;
+  /* A stable blue for shop chrome (equipped ring, badge, buttons). Deliberately
+     NOT --moon: equipped symbol skins override --moon, and using it here would
+     recolour the shop by whatever you happen to be wearing. Never overridden by
+     cosmetics, and legible on both light and dark. */
+  --brand: #3b82c4;
   --accent: #2b3440; /* primary button / borders */
   --danger: #e5484d;
   --muted: #8a8578;
@@ -211,91 +216,244 @@ body {
   text-decoration: none;
 }
 
-/* --- shop ------------------------------------------------------------------ */
+/* --- shop (slideover) ------------------------------------------------------ */
 
-.shop-card {
-  width: 100%;
-  max-width: 520px;
-  margin: 4vh auto;
+/* The overlay covers the viewport but is inert until .open, so nothing behind
+   the closed panel can be clicked and the panel sits off-screen to the right. */
+.shop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 15;
+  pointer-events: none;
+}
+.shop-overlay.open {
+  pointer-events: auto;
+}
+.shop-backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--backdrop);
+  opacity: 0;
+  transition: opacity 0.24s ease;
+}
+.shop-overlay.open .shop-backdrop {
+  opacity: 1;
+}
+
+.shop-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: min(460px, 100%);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  background: var(--cream);
+  border-left: 1px solid var(--border);
+  box-shadow: -24px 0 60px rgba(0, 0, 0, 0.28);
+  transform: translateX(100%);
+  transition: transform 0.26s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
+.shop-overlay.open .shop-panel {
+  transform: translateX(0);
+}
+
 .shop-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  gap: 12px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--cream);
 }
 .shop-title {
   margin: 0;
-  font-size: 1.6rem;
+  margin-right: auto;
+  font-size: 1.35rem;
   font-weight: 800;
 }
+.shop-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.9rem;
+  cursor: pointer;
+  flex: none;
+  transition: background 0.15s, border-color 0.15s;
+}
+.shop-close:hover {
+  border-color: var(--muted);
+  background: var(--pill-bg);
+}
+
+/* The only scrolling region, so all four groups are always reachable. */
 .shop-groups {
+  flex: 1;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 22px;
+  padding: 20px;
 }
 .shop-group-title {
-  margin: 0 0 8px;
-  font-size: 0.78rem;
+  margin: 0 0 10px;
+  font-size: 0.74rem;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.6px;
+  letter-spacing: 0.7px;
   color: var(--muted);
 }
 .shop-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
   gap: 10px;
 }
+
 .shop-item {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 7px;
-  padding: 10px 8px;
+  gap: 9px;
+  padding: 12px 8px 10px;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: 14px;
   background: var(--surface);
+  transition: transform 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
+}
+.shop-item:hover {
+  transform: translateY(-2px);
+  border-color: var(--muted);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.14);
 }
 .shop-item.equipped {
-  border-color: var(--moon);
-  box-shadow: inset 0 0 0 1px var(--moon);
+  border-color: var(--brand);
+  box-shadow: inset 0 0 0 1px var(--brand);
+}
+.shop-badge {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--brand);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
 }
 .shop-item-name {
   font-size: 0.82rem;
   font-weight: 700;
   text-align: center;
+  line-height: 1.15;
 }
-.shop-btn {
-  width: 100%;
-  padding: 5px 6px;
-  font-size: 0.78rem;
-}
-/* Preview tile: two dots for symbol skins, two panes for board themes. */
+
+/* Preview tile. Fixed square so every slot's swatch lines up in the grid. */
 .swatch {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
+  gap: 6px;
   width: 100%;
-  height: 40px;
-  border-radius: 9px;
-  border: 1px solid var(--border);
+  aspect-ratio: 1 / 1;
+  border-radius: 10px;
+  background: var(--pill-bg);
   overflow: hidden;
 }
-.swatch i {
-  width: 15px;
-  height: 15px;
+.swatch .dot {
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.14), 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+/* A tiny 2x2 board rendered in the theme's real colours. */
+.mini-board {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 1.5px;
+  width: 60%;
+  aspect-ratio: 1 / 1;
+  border-radius: 5px;
+  overflow: hidden;
+}
+.mini-board i {
   display: block;
 }
-.swatch-text {
-  font-size: 1.2rem;
+.swatch-emoji {
+  font-size: 1.9rem;
+  line-height: 1;
+}
+.swatch-title {
+  font-size: 0.68rem;
   font-weight: 800;
+  color: var(--ink);
+  padding: 0 6px;
+  text-align: center;
+  line-height: 1.1;
+  word-break: break-word;
+}
+
+.shop-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 8px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: background 0.14s, border-color 0.14s, opacity 0.14s;
+}
+.shop-btn-coin {
+  font-size: 0.85em;
+}
+.shop-btn.is-price:hover:not(:disabled) {
+  border-color: var(--sun);
   background: var(--pill-bg);
+}
+.shop-btn.is-owned {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+.shop-btn.is-owned:hover {
+  background: var(--pill-bg);
+}
+.shop-btn.is-equipped {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+.shop-btn:disabled {
+  cursor: default;
+}
+.shop-btn.is-price:disabled {
+  opacity: 0.45;
+}
+
+/* Full-height sheet on phones - a plain page, as asked. */
+@media (max-width: 560px) {
+  .shop-panel {
+    width: 100%;
+    border-left: none;
+  }
 }
 
 /* --- avatars / titles on chips and leaderboard rows ------------------------ */

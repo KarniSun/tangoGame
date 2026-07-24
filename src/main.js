@@ -79,7 +79,7 @@ ui.setupHome({ onSolo: startSolo, onCreate: startCreate, onParty: startCreatePar
 ui.setupDifficulty((level) => (difficulty = level));
 ui.setPlayerName(localStorage.getItem(NAME_KEY) || '');
 ui.setCoins(wallet.getCoins());
-ui.setupShop({ onOpen: showShop, onBack: () => ui.showScreen('home') });
+ui.setupShop({ onOpen: showShop, onClose: ui.closeShop });
 ui.setupAuth({
   onOpen: handleAccountButton,
   onBack: () => ui.showScreen('home'),
@@ -1066,7 +1066,7 @@ function showShop() {
     onBuy: handleBuy,
     onEquip: handleEquip,
   });
-  ui.showScreen('shop');
+  ui.openShop();
 }
 
 function handleBuy(item) {
@@ -1224,6 +1224,9 @@ function applyTheme(theme) {
   // Board themes ship a light and a dark variant, so the equipped one has to be
   // re-applied whenever the theme flips.
   refreshCosmetics();
+  // If the shop is open, its board previews were drawn for the old theme -
+  // rebuild them so the swatches match what you'd actually get.
+  if (document.getElementById('shop-overlay').classList.contains('open')) showShop();
 }
 
 function isDarkNow() {

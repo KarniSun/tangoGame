@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
     <title>Tango Duel</title>
-    <link rel="stylesheet" href="style.css?v=20" />
+    <link rel="stylesheet" href="style.css?v=23" />
   </head>
   <body>
     <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle dark mode">🌙</button>
@@ -146,20 +146,23 @@
       </div>
     </section>
 
-    <!-- SHOP ---------------------------------------------------------------->
-    <section id="screen-shop" class="screen">
-      <div class="shop-card">
-        <div class="shop-head">
+    <!-- SHOP (right-hand slideover on desktop, full sheet on mobile) -------->
+    <div id="shop-overlay" class="shop-overlay">
+      <div id="shop-backdrop" class="shop-backdrop"></div>
+      <aside class="shop-panel" role="dialog" aria-label="Shop">
+        <header class="shop-head">
           <h2 class="shop-title">Shop</h2>
           <span class="coin-pill" title="Coins you have earned">
             <span aria-hidden="true">🪙</span>
             <span id="shop-balance">0</span>
           </span>
-        </div>
+          <button id="btn-shop-back" class="shop-close" type="button" aria-label="Close shop">
+            ✕
+          </button>
+        </header>
         <div id="shop-groups" class="shop-groups"></div>
-        <button id="btn-shop-back" class="btn btn-ghost btn-small">Back</button>
-      </div>
-    </section>
+      </aside>
+    </div>
 
     <!-- GAME ---------------------------------------------------------------->
     <section id="screen-game" class="screen">

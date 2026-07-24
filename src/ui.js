@@ -366,34 +366,55 @@ export function setAccount(user) {
 
 // --- shop -------------------------------------------------------------------
 
-/** Wire the shop's entry and exit buttons. */
-export function setupShop({ onOpen, onBack }) {
+/** Wire the shop's open control and every way of closing the slideover. */
+export function setupShop({ onOpen, onClose }) {
   $('btn-shop').addEventListener('click', onOpen);
-  $('btn-shop-back').addEventListener('click', onBack);
+  $('btn-shop-back').addEventListener('click', onClose);
+  $('shop-backdrop').addEventListener('click', onClose);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && $('shop-overlay').classList.contains('open')) onClose();
+  });
 }
 
-/** A small visual preview so items are judged by look, not by name. */
+export function openShop() {
+  $('shop-overlay').classList.add('open');
+}
+export function closeShop() {
+  $('shop-overlay').classList.remove('open');
+}
+
+/** A visual preview so items are judged by look, not by name. */
 function swatchFor(item, isDark) {
   const sw = document.createElement('span');
-  sw.className = 'swatch';
+  sw.className = `swatch swatch-${item.slot}`;
+
   if (item.slot === 'symbols') {
     const sun = document.createElement('i');
+    sun.className = 'dot';
     sun.style.background = item.vars['--sun'];
     const moon = document.createElement('i');
+    moon.className = 'dot';
     moon.style.background = item.vars['--moon'];
     sw.append(sun, moon);
   } else if (item.slot === 'board') {
+    // A tiny 2x2 board rendered in the theme's own colours - a real preview.
     const v = isDark ? item.dark : item.light;
     sw.style.background = v['--cream'];
-    sw.style.borderColor = v['--line'];
-    const cell = document.createElement('i');
-    cell.style.background = v['--cell-bg'];
-    const given = document.createElement('i');
-    given.style.background = v['--given-bg'];
-    sw.append(cell, given);
+    const mini = document.createElement('span');
+    mini.className = 'mini-board';
+    mini.style.background = v['--line'];
+    for (let i = 0; i < 4; i++) {
+      const cell = document.createElement('i');
+      cell.style.background = i === 0 || i === 3 ? v['--given-bg'] : v['--cell-bg'];
+      mini.appendChild(cell);
+    }
+    sw.appendChild(mini);
+  } else if (item.slot === 'avatar') {
+    sw.classList.add('swatch-emoji');
+    sw.textContent = item.emoji || '🚫';
   } else {
-    sw.classList.add('swatch-text');
-    sw.textContent = item.emoji || item.text || '-';
+    sw.classList.add('swatch-title');
+    sw.textContent = item.text || 'None';
   }
   return sw;
 }
@@ -421,6 +442,12 @@ export function renderShop({ groups, coins, isDark, onBuy, onEquip }) {
     group.items.forEach((item) => {
       const card = document.createElement('div');
       card.className = 'shop-item' + (item.equipped ? ' equipped' : '');
+      if (item.equipped) {
+        const badge = document.createElement('span');
+        badge.className = 'shop-badge';
+        badge.textContent = '✓';
+        card.appendChild(badge);
+      }
       card.appendChild(swatchFor(item, isDark));
 
       const name = document.createElement('span');
@@ -430,16 +457,22 @@ export function renderShop({ groups, coins, isDark, onBuy, onEquip }) {
 
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = 'btn btn-small shop-btn';
+      btn.className = 'shop-btn';
       if (item.equipped) {
+        btn.classList.add('is-equipped');
         btn.textContent = 'Equipped';
         btn.disabled = true;
       } else if (item.owned) {
+        btn.classList.add('is-owned');
         btn.textContent = 'Equip';
         btn.onclick = () => onEquip(item);
       } else {
-        btn.textContent = `🪙 ${item.price}`;
+        btn.classList.add('is-price');
         btn.disabled = coins < item.price;
+        const coin = document.createElement('span');
+        coin.className = 'shop-btn-coin';
+        coin.textContent = '🪙';
+        btn.append(coin, document.createTextNode(String(item.price)));
         btn.onclick = () => onBuy(item);
       }
       card.appendChild(btn);
