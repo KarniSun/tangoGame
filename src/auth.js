@@ -86,17 +86,11 @@ export async function onAuthChange(callback) {
   return sdk.onAuthStateChanged(auth, callback);
 }
 
-export async function signInWithGoogle() {
-  await ensureAuth();
-  const provider = new sdk.GoogleAuthProvider();
-  return attempt(() => sdk.signInWithPopup(auth, provider));
-}
-
 /**
- * Full-page redirect sign-in. The popup flow silently fails on browsers that
- * block third-party cookies or enforce COOP - the popup opens and instantly
- * closes - so the caller falls back to this, which navigates away and back
- * instead of relying on a popup window.
+ * Full-page redirect sign-in with Google. Chosen over signInWithPopup because a
+ * popup silently fails on browsers that block third-party cookies or enforce
+ * COOP - it opens and instantly closes - whereas a redirect navigates the top
+ * window and does not depend on a popup at all.
  */
 export async function signInWithGoogleRedirect() {
   await ensureAuth();

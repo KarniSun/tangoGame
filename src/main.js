@@ -1005,43 +1005,24 @@ async function handleAuthChange(user) {
   }
 }
 
-// Popup failures that mean "this browser won't do popups" rather than a real
-// auth error - fall back to a full-page redirect for these.
-const POPUP_FALLBACK_CODES = new Set([
-  'auth/popup-blocked',
-  'auth/popup-closed-by-user',
-  'auth/cancelled-popup-request',
-  'auth/web-storage-unsupported',
-  'auth/operation-not-supported-in-this-environment',
-]);
-
 /**
- * Google sign-in. Tries the popup first (nicer - no navigation), and on the
- * class of failures caused by cookie/COOP/popup-blocker restrictions, where the
- * popup just opens and instantly closes, switches to a redirect that always
- * works. The breadcrumb tells boot to finish the redirect when we come back.
+ * Google sign-in, redirect-only. A popup flow flashes and instantly closes on
+ * any browser that blocks third-party cookies or enforces COOP - which is most
+ * of them now - so we skip the popup entirely and use a full-page redirect,
+ * which does not depend on a popup window at all. The breadcrumb tells boot to
+ * finish the sign-in when Google sends us back; completeRedirect() there
+ * surfaces a clear error (e.g. an unauthorised domain) if it did not work.
  */
 async function handleGoogle() {
   ui.setAuthError('');
   ui.setAuthBusy(true);
   try {
+    localStorage.setItem(AUTH_REDIRECT_KEY, '1');
     const a = await ensureAuthMod();
-    await a.signInWithGoogle();
+    await a.signInWithGoogleRedirect(); // navigates away to Google; no return on success
   } catch (err) {
-    if (POPUP_FALLBACK_CODES.has(err.code)) {
-      try {
-        localStorage.setItem(AUTH_REDIRECT_KEY, '1');
-        const a = await ensureAuthMod();
-        await a.signInWithGoogleRedirect(); // navigates away; no return
-        return;
-      } catch (err2) {
-        localStorage.removeItem(AUTH_REDIRECT_KEY);
-        ui.setAuthError(err2.message || 'Google sign-in failed.');
-      }
-    } else {
-      ui.setAuthError(err.message || 'Google sign-in failed.');
-    }
-  } finally {
+    localStorage.removeItem(AUTH_REDIRECT_KEY);
+    ui.setAuthError(err.message || 'Google sign-in failed.');
     ui.setAuthBusy(false);
   }
 }
