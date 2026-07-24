@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
     <title>Tango Duel</title>
-    <link rel="stylesheet" href="style.css?v=29" />
+    <link rel="stylesheet" href="style.css?v=30" />
   </head>
   <body>
     <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle dark mode">🌙</button>
@@ -443,6 +443,11 @@
       </div>
     </div>
 
-    <script type="module" src="src/main.js"></script>
+    <!-- The ?v= on this script, on the stylesheet, and on every local import in
+         src/*.js is a cache-buster. GitHub Pages caches files for ~10 min with
+         no per-file hashing, so after a deploy a browser can otherwise mix old
+         and new modules and crash. Bump the number everywhere on each deploy:
+         node -e "const fs=require('fs'),v=Date.now();for(const f of ['index.html',...fs.readdirSync('src').filter(x=>x.endsWith('.js')).map(x=>'src/'+x)]){fs.writeFileSync(f,fs.readFileSync(f,'utf8').replace(/\?v=\d+/g,'?v='+v))}" -->
+    <script type="module" src="src/main.js?v=30"></script>
   </body>
 </html>

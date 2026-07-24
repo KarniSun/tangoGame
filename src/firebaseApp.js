@@ -9,7 +9,7 @@
 // step. If you prefer, swap these URLs for locally-vendored copies.
 // ---------------------------------------------------------------------------
 
-import { firebaseConfig, isFirebaseConfigured } from './firebaseConfig.js';
+import { firebaseConfig, isFirebaseConfigured } from './firebaseConfig.js?v=30';
 
 export const SDK_VERSION = '10.12.2';
 const APP_URL = `https://www.gstatic.com/firebasejs/${SDK_VERSION}/firebase-app.js`;

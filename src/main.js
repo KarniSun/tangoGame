@@ -6,12 +6,12 @@
 // multiplayer) the multiplayer/Firebase layer.
 // ---------------------------------------------------------------------------
 
-import { GameSession } from './gameSession.js';
-import { createGame, EMPTY } from './puzzleEngine.js';
-import { renderBoard } from './boardRenderer.js';
-import * as ui from './ui.js';
-import * as wallet from './wallet.js';
-import * as cosmetics from './cosmetics.js';
+import { GameSession } from './gameSession.js?v=30';
+import { createGame, EMPTY } from './puzzleEngine.js?v=30';
+import { renderBoard } from './boardRenderer.js?v=30';
+import * as ui from './ui.js?v=30';
+import * as wallet from './wallet.js?v=30';
+import * as cosmetics from './cosmetics.js?v=30';
 
 const BEST_KEY = 'tango-best-time';
 const NAME_KEY = 'tango-name';
@@ -133,7 +133,7 @@ function startSolo() {
 async function startCreate() {
   mode = 'create';
   try {
-    mp = await import('./multiplayer.js');
+    mp = await import('./multiplayer.js?v=30');
     roomCode = mp.generateRoomCode();
     activeDifficulty = difficulty;
     const game = createGame(DIFFICULTY[difficulty]);
@@ -155,7 +155,7 @@ async function startCreate() {
 async function startJoin(code, savedRole = null) {
   mode = savedRole === 'player1' ? 'create' : 'join';
   try {
-    mp = await import('./multiplayer.js');
+    mp = await import('./multiplayer.js?v=30');
     roomCode = code;
     // A saved role means we were here before: reclaim THAT slot rather than
     // unconditionally taking player2, which would collide with the real player2.
@@ -255,7 +255,7 @@ function hostSetConfig(patch) {
 async function startCreateParty() {
   mode = 'party';
   try {
-    mp = await import('./multiplayer.js');
+    mp = await import('./multiplayer.js?v=30');
     const name = playerName();
     roomCode = mp.generateRoomCode();
     myId = mp.generatePlayerId();
@@ -274,7 +274,7 @@ async function startCreateParty() {
 async function joinPartyFlow(code) {
   mode = 'party';
   try {
-    mp = await import('./multiplayer.js');
+    mp = await import('./multiplayer.js?v=30');
     const name = playerName();
     roomCode = code;
     myId = mp.generatePlayerId();
@@ -292,7 +292,7 @@ async function joinPartyFlow(code) {
 async function rejoinPartyFlow(code, playerId) {
   mode = 'party';
   try {
-    mp = await import('./multiplayer.js');
+    mp = await import('./multiplayer.js?v=30');
     roomCode = code;
     myId = playerId;
     await mp.rejoinParty(code, { playerId, name: playerName(), identity: identity() });
@@ -313,7 +313,7 @@ async function rejoinPartyFlow(code, playerId) {
  */
 async function routeJoin(code) {
   try {
-    mp = await import('./multiplayer.js');
+    mp = await import('./multiplayer.js?v=30');
     const info = await mp.peekRoom(code);
     if (!info.exists) throw new Error(`Room "${code}" not found.`);
     const saved = loadRoomIdentity(code);
@@ -944,7 +944,7 @@ let signedInUser = null;
 let signedInEmail = ''; // shown on the account screen
 
 async function ensureAuthMod() {
-  if (!authMod) authMod = await import('./auth.js');
+  if (!authMod) authMod = await import('./auth.js?v=30');
   return authMod;
 }
 

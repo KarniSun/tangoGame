@@ -12,7 +12,7 @@
 // That keeps solo mode free of any Firebase dependency.
 // ---------------------------------------------------------------------------
 
-import { getApp, SDK_VERSION } from './firebaseApp.js';
+import { getApp, SDK_VERSION } from './firebaseApp.js?v=30';
 
 const AUTH_URL = `https://www.gstatic.com/firebasejs/${SDK_VERSION}/firebase-auth.js`;
 

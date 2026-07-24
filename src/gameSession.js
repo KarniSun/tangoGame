@@ -22,7 +22,7 @@ import {
   satisfiesClues,
   isBoardComplete,
   progressFraction,
-} from './puzzleEngine.js';
+} from './puzzleEngine.js?v=30';
 
 // Empty -> Sun -> Moon -> Empty. Tapping a cell walks this cycle.
 const NEXT_SYMBOL = { [EMPTY]: SUN, [SUN]: MOON, [MOON]: EMPTY };
