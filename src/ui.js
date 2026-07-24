@@ -311,6 +311,7 @@ export function renderLiveStandings(rows) {
 export function setupAuth({ onOpen, onBack, onGoogle, onSubmit, onReset }) {
   $('btn-account').addEventListener('click', onOpen);
   $('btn-auth-back').addEventListener('click', onBack);
+  $('btn-auth-nav').addEventListener('click', onBack); // top-left arrow, no scrolling
   $('btn-google').addEventListener('click', onGoogle);
   $('btn-auth-submit').addEventListener('click', () =>
     onSubmit(authMode, $('auth-email').value.trim(), $('auth-password').value)
@@ -378,9 +379,13 @@ export function setupShop({ onOpen, onClose }) {
 
 export function openShop() {
   $('shop-overlay').classList.add('open');
+  // The global theme toggle is pinned top-right and would sit on top of the
+  // shop's own coin pill; hide it while the slideover is up.
+  document.body.classList.add('shop-open');
 }
 export function closeShop() {
   $('shop-overlay').classList.remove('open');
+  document.body.classList.remove('shop-open');
 }
 
 /** A visual preview so items are judged by look, not by name. */

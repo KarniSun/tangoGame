@@ -272,24 +272,34 @@ body {
   font-size: 1.35rem;
   font-weight: 800;
 }
-.shop-close {
+/* Round back/close control, reused by the shop header and the auth screen. */
+.icon-back {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   border: 1px solid var(--border);
   border-radius: 50%;
   background: var(--surface);
   color: var(--ink);
-  font-size: 0.9rem;
+  font-size: 1.15rem;
+  line-height: 1;
   cursor: pointer;
   flex: none;
   transition: background 0.15s, border-color 0.15s;
 }
-.shop-close:hover {
+.icon-back:hover {
   border-color: var(--muted);
   background: var(--pill-bg);
+}
+/* Pinned top-left on the auth screen so "back" never needs a scroll. Fixed
+   inside a display:none section only renders while that screen is active. */
+.nav-fixed {
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  z-index: 5;
 }
 
 /* The only scrolling region, so all four groups are always reachable. */
@@ -910,6 +920,10 @@ body {
 }
 /* Keep it out of the way during a game (the top-left overlaps the You panel). */
 body:has(#screen-game.active) .theme-toggle {
+  display: none;
+}
+/* ...and while the shop slideover is open, where it overlaps the coin pill. */
+body.shop-open .theme-toggle {
   display: none;
 }
 

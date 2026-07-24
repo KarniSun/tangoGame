@@ -21,6 +21,8 @@ const RULES_KEY = 'tango-rules-open';
 // flag is our own breadcrumb: it tells boot whether it is worth loading the auth
 // SDK at all, so a guest who only plays solo never pulls in Firebase.
 const AUTH_HINT_KEY = 'tango-signed-in';
+// Set just before a Google redirect sign-in so boot knows to finish it on return.
+const AUTH_REDIRECT_KEY = 'tango-auth-redirecting';
 
 // Difficulty presets fed into createGame(). Fewer givens = harder (more of the
 // board must be deduced). The host's choice is baked into the generated puzzle,
@@ -102,7 +104,12 @@ if (roomParam) {
   ui.showScreen('home');
 }
 
-restoreSessionIfAny();
+// Deferred to a microtask so it runs AFTER this module's top-level finishes.
+// restoreSessionIfAny synchronously reaches ensureAuthMod, which reads the
+// `authMod` binding declared further down; calling it inline here would touch
+// that `let` in its temporal dead zone and throw a ReferenceError that the
+// function's own try/catch would silently swallow, leaving sessions unrestored.
+queueMicrotask(restoreSessionIfAny);
 
 // --- solo mode --------------------------------------------------------------
 
@@ -946,6 +953,9 @@ async function handleAccountButton() {
     try {
       const a = await ensureAuthMod();
       await a.signOutUser();
+      // Explicit sign-out is the only place the restore breadcrumb is cleared,
+      // so the next boot stays a guest instead of reloading Firebase.
+      localStorage.removeItem(AUTH_HINT_KEY);
     } catch (err) {
       ui.setHomeError(err.message);
     }
@@ -972,6 +982,11 @@ async function handleAuthChange(user) {
   if (user) {
     signedInUser = a.displayNameOf(user);
     ui.setAccount(signedInUser);
+    // The breadcrumb that tells boot to load Firebase and restore. Set here on a
+    // confirmed sign-in; cleared ONLY on an explicit sign-out (see
+    // handleAccountButton). It must never be touched by the transient `null`
+    // this listener fires while a persisted session is still resolving, or a
+    // reload would fail to restore the account.
     localStorage.setItem(AUTH_HINT_KEY, '1');
     try {
       await wallet.attachAccount(user.uid, refreshWalletUI);
@@ -985,15 +1000,50 @@ async function handleAuthChange(user) {
   } else {
     signedInUser = null;
     ui.setAccount(null);
-    localStorage.removeItem(AUTH_HINT_KEY);
     wallet.detachAccount();
     refreshWalletUI();
   }
 }
 
-/** Google / email / password submissions from the account screen. */
+// Popup failures that mean "this browser won't do popups" rather than a real
+// auth error - fall back to a full-page redirect for these.
+const POPUP_FALLBACK_CODES = new Set([
+  'auth/popup-blocked',
+  'auth/popup-closed-by-user',
+  'auth/cancelled-popup-request',
+  'auth/web-storage-unsupported',
+  'auth/operation-not-supported-in-this-environment',
+]);
+
+/**
+ * Google sign-in. Tries the popup first (nicer - no navigation), and on the
+ * class of failures caused by cookie/COOP/popup-blocker restrictions, where the
+ * popup just opens and instantly closes, switches to a redirect that always
+ * works. The breadcrumb tells boot to finish the redirect when we come back.
+ */
 async function handleGoogle() {
-  await runAuth((a) => a.signInWithGoogle());
+  ui.setAuthError('');
+  ui.setAuthBusy(true);
+  try {
+    const a = await ensureAuthMod();
+    await a.signInWithGoogle();
+  } catch (err) {
+    if (POPUP_FALLBACK_CODES.has(err.code)) {
+      try {
+        localStorage.setItem(AUTH_REDIRECT_KEY, '1');
+        const a = await ensureAuthMod();
+        await a.signInWithGoogleRedirect(); // navigates away; no return
+        return;
+      } catch (err2) {
+        localStorage.removeItem(AUTH_REDIRECT_KEY);
+        ui.setAuthError(err2.message || 'Google sign-in failed.');
+      }
+    } else {
+      ui.setAuthError(err.message || 'Google sign-in failed.');
+    }
+  } finally {
+    ui.setAuthBusy(false);
+  }
 }
 
 async function handleAuthSubmit(mode, email, password) {
@@ -1030,12 +1080,25 @@ async function runAuth(fn) {
  * must not pull in Firebase for a guest who is only here to play solo.
  */
 async function restoreSessionIfAny() {
-  if (!localStorage.getItem(AUTH_HINT_KEY)) return;
+  const returningFromRedirect = localStorage.getItem(AUTH_REDIRECT_KEY);
+  if (!localStorage.getItem(AUTH_HINT_KEY) && !returningFromRedirect) return;
   try {
     const a = await ensureAuthMod();
-    authWatching = true;
-    await a.onAuthChange(handleAuthChange);
+    if (!authWatching) {
+      authWatching = true;
+      await a.onAuthChange(handleAuthChange);
+    }
+    if (returningFromRedirect) {
+      localStorage.removeItem(AUTH_REDIRECT_KEY);
+      try {
+        await a.completeRedirect(); // finishes the Google sign-in we bounced through
+      } catch (err) {
+        ui.showAuth();
+        ui.setAuthError(err.message || 'Google sign-in failed.');
+      }
+    }
   } catch {
+    localStorage.removeItem(AUTH_REDIRECT_KEY);
     /* offline or misconfigured - carry on as a guest */
   }
 }

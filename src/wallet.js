@@ -264,16 +264,28 @@ export async function attachAccount(uid, onRemoteChange) {
   return merged;
 }
 
-/** Detach on sign-out: back to a fresh, empty guest wallet. */
+/**
+ * Detach on sign-out: back to a fresh, empty guest wallet.
+ *
+ * Crucially, this only resets the wallet when we were ACTUALLY signed in. The
+ * auth listener fires an initial `null` the moment the account screen is opened,
+ * and clobbering the guest wallet then would wipe coins a guest earned before
+ * they ever tried to sign up - exactly the coins the merge is meant to keep.
+ */
 export function detachAccount() {
+  const wasSignedIn = accountUid !== null;
   if (unsubscribeRemote) unsubscribeRemote();
   unsubscribeRemote = null;
   if (writeTimer) clearTimeout(writeTimer);
   writeTimer = null;
   accountUid = null;
   notify = null;
-  cache = emptyProfile();
-  writeGuest(cache);
+  if (wasSignedIn) {
+    // The account's coins live on in Firebase; locally we start fresh as a guest.
+    cache = emptyProfile();
+    writeGuest(cache);
+  }
+  // Never signed in -> leave the guest wallet exactly as it was.
 }
 
 export function isSignedIn() {
