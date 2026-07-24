@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
     <title>Tango Duel</title>
-    <link rel="stylesheet" href="style.css?v=26" />
+    <link rel="stylesheet" href="style.css?v=27" />
   </head>
   <body>
     <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle dark mode">🌙</button>
@@ -58,6 +58,12 @@
 
         <button id="btn-solo" class="btn btn-ghost">Practice Solo</button>
         <p id="home-error" class="error"></p>
+
+        <footer class="home-legal">
+          <button id="btn-impressum" class="legal-link" type="button">Impressum</button>
+          <span aria-hidden="true">·</span>
+          <button id="btn-datenschutz" class="legal-link" type="button">Datenschutz</button>
+        </footer>
       </div>
     </section>
 
@@ -166,6 +172,133 @@
         <div id="shop-groups" class="shop-groups"></div>
       </aside>
     </div>
+
+    <!-- IMPRESSUM ----------------------------------------------------------->
+    <section id="screen-impressum" class="screen legal-screen">
+      <button class="icon-back nav-fixed" type="button" data-legal-back aria-label="Zurück">←</button>
+      <article class="legal-card">
+        <h1>Impressum</h1>
+        <p>Angaben gemäß § 5 Digitale-Dienste-Gesetz (DDG):</p>
+        <p>
+          [Vollständiger Name]<br />
+          [Straße und Hausnummer]<br />
+          [PLZ und Ort]<br />
+          Deutschland
+        </p>
+
+        <h2>Kontakt</h2>
+        <p>E-Mail: [E-Mail-Adresse]</p>
+
+        <h2>Verantwortlich für den Inhalt</h2>
+        <p>[Vollständiger Name], Anschrift wie oben.</p>
+
+        <p class="legal-note">
+          Tango Duel ist ein privates, nicht-kommerzielles Hobbyprojekt ohne
+          Werbung und ohne Gewinnerzielungsabsicht.
+        </p>
+      </article>
+    </section>
+
+    <!-- DATENSCHUTZ ---------------------------------------------------------->
+    <section id="screen-datenschutz" class="screen legal-screen">
+      <button class="icon-back nav-fixed" type="button" data-legal-back aria-label="Zurück">←</button>
+      <article class="legal-card">
+        <h1>Datenschutzerklärung</h1>
+        <p class="legal-updated">Stand: [Monat Jahr]</p>
+
+        <h2>1. Verantwortlicher</h2>
+        <p>
+          Verantwortlich für die Datenverarbeitung auf dieser Website ist
+          [Vollständiger Name], [PLZ und Ort]. Kontakt: [E-Mail-Adresse] (siehe
+          auch Impressum).
+        </p>
+
+        <h2>2. Überblick</h2>
+        <p>
+          Tango Duel ist ein Browser-Puzzlespiel. Du kannst es als Gast ohne
+          Konto spielen. Nur wenn du dich freiwillig registrierst oder dich mit
+          Google anmeldest, werden dafür personenbezogene Daten verarbeitet. Es
+          findet keine Werbung, kein Tracking und keine Weitergabe zu
+          Marketingzwecken statt.
+        </p>
+
+        <h2>3. Hosting (GitHub Pages)</h2>
+        <p>
+          Die Website wird über GitHub Pages bereitgestellt (GitHub, Inc., USA).
+          Beim Aufruf übermittelt dein Browser technisch notwendige Daten wie
+          deine IP-Adresse an GitHub; diese können in Server-Logfiles verarbeitet
+          werden. Rechtsgrundlage ist das berechtigte Interesse an einer sicheren
+          und funktionsfähigen Bereitstellung (Art. 6 Abs. 1 lit. f DSGVO).
+        </p>
+
+        <h2>4. Konten: Firebase Authentication</h2>
+        <p>
+          Für Benutzerkonten nutzen wir Firebase Authentication (Google Ireland
+          Limited). Bei der Registrierung per E-Mail speichern wir deine
+          E-Mail-Adresse und ein bei Google verschlüsselt hinterlegtes Passwort.
+          Bei der Anmeldung mit Google erhalten wir deinen Namen und deine
+          E-Mail-Adresse aus deinem Google-Konto. Diese Daten dienen
+          ausschließlich dazu, dein Konto und deinen Spielfortschritt
+          geräteübergreifend verfügbar zu machen. Rechtsgrundlage ist die
+          Erfüllung des Nutzungsverhältnisses (Art. 6 Abs. 1 lit. b DSGVO).
+        </p>
+
+        <h2>5. Spieldaten: Firebase Realtime Database</h2>
+        <p>
+          Für den Mehrspieler-Modus und Konten nutzen wir die Firebase Realtime
+          Database (Google Ireland Limited). Gespeichert werden dabei etwa dein
+          selbst gewählter Anzeigename, ausgewählte Kosmetik (Avatar/Titel),
+          Spielfortschritt und Rundenzeiten sowie - bei angemeldeten Nutzern -
+          dein Münzstand und deine freigeschalteten Gegenstände. Reine
+          Spielraum-Daten werden nur für die Dauer der Partie benötigt.
+        </p>
+
+        <h2>6. Lokale Speicherung auf deinem Gerät</h2>
+        <p>
+          Ohne Konto werden dein Münzstand, deine Kosmetik, dein Name, deine
+          Bestzeit und ähnliche Einstellungen ausschließlich lokal in deinem
+          Browser (localStorage) gespeichert und nicht an uns übertragen. Diese
+          Speicherung ist für die Funktion des Spiels erforderlich.
+        </p>
+
+        <h2>7. Datenübermittlung in die USA</h2>
+        <p>
+          Firebase/Google und GitHub können Daten in den USA verarbeiten. Google
+          LLC ist unter dem EU-US Data Privacy Framework zertifiziert; für
+          Übermittlungen bestehen zudem Standardvertragsklauseln. Ein dem
+          EU-Niveau vollständig entsprechendes Datenschutzniveau kann in
+          Drittländern dennoch nicht in jedem Fall garantiert werden.
+        </p>
+
+        <h2>8. Speicherdauer</h2>
+        <p>
+          Kontodaten speichern wir, solange dein Konto besteht. Lokal
+          gespeicherte Daten bleiben, bis du sie in deinem Browser löschst.
+          Spielraum-Daten werden nach Ende bzw. Ablauf der Partie nicht mehr
+          benötigt.
+        </p>
+
+        <h2>9. Deine Rechte</h2>
+        <p>
+          Du hast das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung
+          der Verarbeitung, Datenübertragbarkeit und Widerspruch. Wende dich
+          dafür an die im Impressum genannte Kontaktadresse.
+        </p>
+
+        <h2>10. Konto löschen</h2>
+        <p>
+          Auf Anfrage an die oben genannte Adresse löschen wir dein Konto und die
+          zugehörigen Daten. Gastdaten kannst du jederzeit selbst entfernen,
+          indem du die Websitedaten in deinem Browser löschst.
+        </p>
+
+        <h2>11. Beschwerderecht</h2>
+        <p>
+          Du hast das Recht, dich bei einer Datenschutz-Aufsichtsbehörde zu
+          beschweren, insbesondere in dem EU-Mitgliedstaat deines Aufenthaltsorts.
+        </p>
+      </article>
+    </section>
 
     <!-- GAME ---------------------------------------------------------------->
     <section id="screen-game" class="screen">

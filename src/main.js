@@ -94,6 +94,7 @@ setupGameControls();
 setupPartyControls();
 setupTheme();
 setupRules();
+setupLegal();
 
 // A shared link (?room=ABCD) drops you straight into the join flow (auto-detects
 // whether the code is a 1v1 room or a party).
@@ -1292,4 +1293,16 @@ function setupRules() {
   const el = document.getElementById('rules');
   el.open = localStorage.getItem(RULES_KEY) !== 'false';
   el.addEventListener('toggle', () => localStorage.setItem(RULES_KEY, String(el.open)));
+}
+
+// --- legal pages (Impressum / Datenschutz) ----------------------------------
+// Static content screens reached from the home footer; every back arrow inside
+// one returns home.
+
+function setupLegal() {
+  document.getElementById('btn-impressum').addEventListener('click', () => ui.showScreen('impressum'));
+  document.getElementById('btn-datenschutz').addEventListener('click', () => ui.showScreen('datenschutz'));
+  document
+    .querySelectorAll('[data-legal-back]')
+    .forEach((btn) => btn.addEventListener('click', () => ui.showScreen('home')));
 }

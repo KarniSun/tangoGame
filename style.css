@@ -216,6 +216,65 @@ body {
   text-decoration: none;
 }
 
+/* --- legal pages (Impressum / Datenschutz) --------------------------------- */
+
+/* Wider than a normal screen so long-form text stays readable. */
+#screen-impressum,
+#screen-datenschutz {
+  max-width: 680px;
+}
+.home-legal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.legal-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.legal-link:hover {
+  color: var(--ink);
+}
+.legal-card {
+  width: 100%;
+  margin: 9vh 0 7vh;
+  text-align: left;
+  line-height: 1.6;
+}
+.legal-card h1 {
+  font-size: 1.6rem;
+  font-weight: 800;
+  margin: 0 0 8px;
+}
+.legal-card h2 {
+  font-size: 1.02rem;
+  font-weight: 800;
+  margin: 22px 0 6px;
+}
+.legal-card p {
+  margin: 0 0 10px;
+  color: var(--ink);
+  font-size: 0.94rem;
+}
+.legal-updated,
+.legal-note {
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+.legal-note {
+  margin-top: 18px;
+}
+
 /* --- shop (slideover) ------------------------------------------------------ */
 
 /* The overlay covers the viewport but is inert until .open, so nothing behind
