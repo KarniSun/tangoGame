@@ -275,6 +275,42 @@ body {
   margin-top: 18px;
 }
 
+/* --- account screen (signed-in settings) ----------------------------------- */
+
+.account-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+  margin-bottom: 4px;
+}
+.account-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 0.92rem;
+}
+.account-row > span:last-child {
+  font-weight: 700;
+  word-break: break-all;
+}
+.delete-confirm {
+  text-align: left;
+  border: 1px solid var(--danger);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+.delete-confirm p {
+  margin: 0 0 12px;
+  font-size: 0.9rem;
+}
+.delete-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 /* --- shop (slideover) ------------------------------------------------------ */
 
 /* The overlay covers the viewport but is inert until .open, so nothing behind
@@ -634,6 +670,17 @@ body {
 .btn-small {
   padding: 8px 14px;
   font-size: 0.85rem;
+}
+/* Destructive variants (account deletion). Defined after .btn so they win. */
+.btn-danger-outline {
+  color: var(--danger);
+  border-color: var(--danger);
+  background: transparent;
+}
+.btn-danger {
+  color: #fff;
+  background: var(--danger);
+  border-color: var(--danger);
 }
 .input {
   font: inherit;

@@ -291,3 +291,17 @@ export function detachAccount() {
 export function isSignedIn() {
   return accountUid !== null;
 }
+
+/**
+ * Erase the signed-in account's stored profile from the database. Must run while
+ * still authenticated (the rules only allow the owner to write their own node),
+ * so the caller does this BEFORE deleting the Firebase login. The pending
+ * debounced write is cancelled so it cannot recreate the node after removal.
+ */
+export async function deleteAccountData() {
+  if (!accountUid) return;
+  if (writeTimer) clearTimeout(writeTimer);
+  writeTimer = null;
+  const { db, rtdb } = await getDb();
+  await rtdb.remove(rtdb.ref(db, `profiles/${accountUid}`));
+}

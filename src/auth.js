@@ -128,6 +128,20 @@ export function currentUser() {
   return auth ? auth.currentUser : null;
 }
 
+/**
+ * Permanently delete the signed-in user's login. Firebase requires a recent
+ * sign-in for this; if the session is old it rejects with
+ * `auth/requires-recent-login`, which the caller turns into a "sign in again"
+ * prompt. Deleting the user's stored game data is the caller's job (wallet),
+ * done while still authenticated, before this.
+ */
+export async function deleteAccount() {
+  await ensureAuth();
+  const user = auth.currentUser;
+  if (!user) throw new Error('You are not signed in.');
+  return attempt(() => sdk.deleteUser(user));
+}
+
 /** A display name worth showing: the profile name, else the email's local part. */
 export function displayNameOf(user) {
   if (!user) return '';

@@ -89,6 +89,11 @@ ui.setupAuth({
   onSubmit: handleAuthSubmit,
   onReset: handlePasswordReset,
 });
+ui.setupAccountScreen({
+  onBack: () => ui.showScreen('home'),
+  onSignOut: handleSignOut,
+  onDelete: handleDeleteAccount,
+});
 setupResultDismiss();
 setupGameControls();
 setupPartyControls();
@@ -936,6 +941,7 @@ function awardCoins(args) {
 
 let authMod = null; // lazily-imported auth module
 let signedInUser = null;
+let signedInEmail = ''; // shown on the account screen
 
 async function ensureAuthMod() {
   if (!authMod) authMod = await import('./auth.js');
@@ -948,19 +954,11 @@ function refreshWalletUI() {
   refreshCosmetics();
 }
 
-/** Open the account screen, or sign out if we are already signed in. */
+/** Signed in: open the account screen. Signed out: open the sign-in screen. */
 async function handleAccountButton() {
   if (signedInUser) {
-    try {
-      const a = await ensureAuthMod();
-      await a.signOutUser();
-      // Explicit sign-out is the only place the restore breadcrumb is cleared,
-      // so the next boot stays a guest instead of reloading Firebase.
-      localStorage.removeItem(AUTH_HINT_KEY);
-    } catch (err) {
-      ui.setHomeError(err.message);
-    }
-    return; // the auth listener handles the rest
+    ui.showAccount({ email: signedInEmail, name: signedInUser, coins: wallet.getCoins() });
+    return;
   }
   ui.showAuth();
   // Start watching sign-in state the first time the screen is opened.
@@ -977,11 +975,55 @@ async function handleAccountButton() {
 
 let authWatching = false;
 
+/** Actually sign out (the account screen's Sign out button). */
+async function handleSignOut() {
+  try {
+    ui.setAccountBusy(true);
+    const a = await ensureAuthMod();
+    await a.signOutUser();
+    // Explicit sign-out is the only place the restore breadcrumb is cleared,
+    // so the next boot stays a guest instead of reloading Firebase.
+    localStorage.removeItem(AUTH_HINT_KEY);
+    ui.showScreen('home'); // the auth listener also flips the UI to guest
+  } catch (err) {
+    ui.setAccountError(err.message);
+  } finally {
+    ui.setAccountBusy(false);
+  }
+}
+
+/**
+ * Permanently delete the account: remove the stored profile from the database
+ * first (while still authenticated), then delete the Firebase login. If the
+ * session is too old, Firebase demands a fresh sign-in, which we surface as a
+ * clear instruction rather than a cryptic error.
+ */
+async function handleDeleteAccount() {
+  try {
+    ui.setAccountBusy(true);
+    ui.setAccountError('');
+    await wallet.deleteAccountData(); // erase profiles/{uid} while rules still allow it
+    const a = await ensureAuthMod();
+    await a.deleteAccount(); // delete the login itself
+    localStorage.removeItem(AUTH_HINT_KEY);
+    ui.showScreen('home'); // the auth listener fires null and resets to guest
+  } catch (err) {
+    if (err.code === 'auth/requires-recent-login') {
+      ui.setAccountError('For your security, please sign out, sign in again, and then delete.');
+    } else {
+      ui.setAccountError(err.message || 'Could not delete the account.');
+    }
+  } finally {
+    ui.setAccountBusy(false);
+  }
+}
+
 /** Fires on sign-in, sign-out, and once on boot with the restored session. */
 async function handleAuthChange(user) {
   const a = authMod;
   if (user) {
     signedInUser = a.displayNameOf(user);
+    signedInEmail = user.email || '';
     ui.setAccount(signedInUser);
     // The breadcrumb that tells boot to load Firebase and restore. Set here on a
     // confirmed sign-in; cleared ONLY on an explicit sign-out (see
@@ -1000,6 +1042,7 @@ async function handleAuthChange(user) {
     ui.showScreen('home');
   } else {
     signedInUser = null;
+    signedInEmail = '';
     ui.setAccount(null);
     wallet.detachAccount();
     refreshWalletUI();

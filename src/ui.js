@@ -355,13 +355,49 @@ export function setAccount(user) {
   const line = $('account-line');
   const btn = $('btn-account');
   if (user) {
-    btn.textContent = 'Sign out';
+    btn.textContent = 'Account'; // opens the account screen, no longer signs out directly
     line.textContent = `Signed in as ${user}`;
     line.classList.remove('hidden');
   } else {
     btn.textContent = 'Sign in';
     line.textContent = '';
     line.classList.add('hidden');
+  }
+}
+
+/**
+ * Wire the signed-in account screen. `onDelete` runs only after the user
+ * confirms the two-step delete prompt.
+ */
+export function setupAccountScreen({ onBack, onSignOut, onDelete }) {
+  $('btn-account-nav').addEventListener('click', onBack);
+  $('btn-signout').addEventListener('click', onSignOut);
+  $('btn-delete-account').addEventListener('click', () =>
+    $('delete-confirm').classList.remove('hidden')
+  );
+  $('btn-delete-cancel').addEventListener('click', () =>
+    $('delete-confirm').classList.add('hidden')
+  );
+  $('btn-delete-yes').addEventListener('click', onDelete);
+}
+
+/** Populate and show the account screen for a signed-in user. */
+export function showAccount({ email, name, coins }) {
+  $('account-email').textContent = email || '(no email)';
+  $('account-name').textContent = name || '';
+  $('account-coins').textContent = `🪙 ${coins}`;
+  $('delete-confirm').classList.add('hidden');
+  setAccountError('');
+  showScreen('account');
+}
+
+export function setAccountError(text) {
+  $('account-error').textContent = text || '';
+}
+
+export function setAccountBusy(busy) {
+  for (const id of ['btn-signout', 'btn-delete-account', 'btn-delete-cancel', 'btn-delete-yes']) {
+    $(id).disabled = busy;
   }
 }
 

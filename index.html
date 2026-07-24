@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
     <title>Tango Duel</title>
-    <link rel="stylesheet" href="style.css?v=27" />
+    <link rel="stylesheet" href="style.css?v=29" />
   </head>
   <body>
     <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle dark mode">🌙</button>
@@ -116,7 +116,7 @@
       </div>
     </section>
 
-    <!-- ACCOUNT ------------------------------------------------------------->
+    <!-- SIGN IN ------------------------------------------------------------->
     <section id="screen-auth" class="screen">
       <button id="btn-auth-nav" class="icon-back nav-fixed" type="button" aria-label="Back to home">
         ←
@@ -152,6 +152,53 @@
 
         <p id="auth-error" class="error"></p>
         <button id="btn-auth-back" class="btn btn-ghost btn-small">Keep playing as a guest</button>
+      </div>
+    </section>
+
+    <!-- ACCOUNT (signed-in settings) ---------------------------------------->
+    <section id="screen-account" class="screen">
+      <button id="btn-account-nav" class="icon-back nav-fixed" type="button" aria-label="Back to home">
+        ←
+      </button>
+      <div class="auth-card">
+        <h2 class="auth-title">Your account</h2>
+
+        <div class="account-info">
+          <div class="account-row">
+            <span class="muted">Signed in as</span>
+            <span id="account-email"></span>
+          </div>
+          <div class="account-row">
+            <span class="muted">Name</span>
+            <span id="account-name"></span>
+          </div>
+          <div class="account-row">
+            <span class="muted">Coins</span>
+            <span id="account-coins"></span>
+          </div>
+        </div>
+
+        <button id="btn-signout" class="btn" type="button">Sign out</button>
+        <button id="btn-delete-account" class="btn btn-danger-outline" type="button">
+          Delete account
+        </button>
+
+        <div id="delete-confirm" class="delete-confirm hidden">
+          <p>
+            This permanently deletes your account, coins and cosmetics. It cannot
+            be undone.
+          </p>
+          <div class="delete-actions">
+            <button id="btn-delete-cancel" class="btn btn-ghost btn-small" type="button">
+              Cancel
+            </button>
+            <button id="btn-delete-yes" class="btn btn-danger btn-small" type="button">
+              Yes, delete
+            </button>
+          </div>
+        </div>
+
+        <p id="account-error" class="error"></p>
       </div>
     </section>
 
@@ -287,9 +334,11 @@
 
         <h2>10. Konto löschen</h2>
         <p>
-          Auf Anfrage an die oben genannte Adresse löschen wir dein Konto und die
-          zugehörigen Daten. Gastdaten kannst du jederzeit selbst entfernen,
-          indem du die Websitedaten in deinem Browser löschst.
+          Du kannst dein Konto samt aller zugehörigen Daten jederzeit selbst und
+          sofort löschen: im angemeldeten Zustand über „Account" und dort
+          „Delete account". Alternativ genügt eine formlose Anfrage an die im
+          Impressum genannte Kontaktadresse. Gastdaten kannst du jederzeit
+          entfernen, indem du die Websitedaten in deinem Browser löschst.
         </p>
 
         <h2>11. Beschwerderecht</h2>
