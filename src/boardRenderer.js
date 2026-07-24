@@ -6,7 +6,7 @@
 // supplied callback. A single renderer is reused by both solo and multiplayer.
 // ---------------------------------------------------------------------------
 
-import { EMPTY, SUN, MOON, SIZE, isGiven } from './puzzleEngine.js?v=30';
+import { EMPTY, SUN, MOON, SIZE, isGiven } from './puzzleEngine.js?v=31';
 
 // Flat, gradient-free icon markup, matching the minimal Tango look. The colours
 // come from the --sun / --moon custom properties rather than literal hex values,

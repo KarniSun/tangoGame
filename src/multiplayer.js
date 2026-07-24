@@ -8,7 +8,7 @@
 // The shared FirebaseApp comes from firebaseApp.js (auth.js uses the same one).
 // ---------------------------------------------------------------------------
 
-import { getDb } from './firebaseApp.js?v=30';
+import { getDb } from './firebaseApp.js?v=31';
 
 let db = null; // memoized Realtime Database handle
 let rtdb = null; // memoized set of database functions from the SDK

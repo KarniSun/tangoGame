@@ -6,12 +6,12 @@
 // multiplayer) the multiplayer/Firebase layer.
 // ---------------------------------------------------------------------------
 
-import { GameSession } from './gameSession.js?v=30';
-import { createGame, EMPTY } from './puzzleEngine.js?v=30';
-import { renderBoard } from './boardRenderer.js?v=30';
-import * as ui from './ui.js?v=30';
-import * as wallet from './wallet.js?v=30';
-import * as cosmetics from './cosmetics.js?v=30';
+import { GameSession } from './gameSession.js?v=31';
+import { createGame, EMPTY } from './puzzleEngine.js?v=31';
+import { renderBoard } from './boardRenderer.js?v=31';
+import * as ui from './ui.js?v=31';
+import * as wallet from './wallet.js?v=31';
+import * as cosmetics from './cosmetics.js?v=31';
 
 const BEST_KEY = 'tango-best-time';
 const NAME_KEY = 'tango-name';
@@ -21,8 +21,6 @@ const RULES_KEY = 'tango-rules-open';
 // flag is our own breadcrumb: it tells boot whether it is worth loading the auth
 // SDK at all, so a guest who only plays solo never pulls in Firebase.
 const AUTH_HINT_KEY = 'tango-signed-in';
-// Set just before a Google redirect sign-in so boot knows to finish it on return.
-const AUTH_REDIRECT_KEY = 'tango-auth-redirecting';
 
 // Difficulty presets fed into createGame(). Fewer givens = harder (more of the
 // board must be deduced). The host's choice is baked into the generated puzzle,
@@ -133,7 +131,7 @@ function startSolo() {
 async function startCreate() {
   mode = 'create';
   try {
-    mp = await import('./multiplayer.js?v=30');
+    mp = await import('./multiplayer.js?v=31');
     roomCode = mp.generateRoomCode();
     activeDifficulty = difficulty;
     const game = createGame(DIFFICULTY[difficulty]);
@@ -155,7 +153,7 @@ async function startCreate() {
 async function startJoin(code, savedRole = null) {
   mode = savedRole === 'player1' ? 'create' : 'join';
   try {
-    mp = await import('./multiplayer.js?v=30');
+    mp = await import('./multiplayer.js?v=31');
     roomCode = code;
     // A saved role means we were here before: reclaim THAT slot rather than
     // unconditionally taking player2, which would collide with the real player2.
@@ -255,7 +253,7 @@ function hostSetConfig(patch) {
 async function startCreateParty() {
   mode = 'party';
   try {
-    mp = await import('./multiplayer.js?v=30');
+    mp = await import('./multiplayer.js?v=31');
     const name = playerName();
     roomCode = mp.generateRoomCode();
     myId = mp.generatePlayerId();
@@ -274,7 +272,7 @@ async function startCreateParty() {
 async function joinPartyFlow(code) {
   mode = 'party';
   try {
-    mp = await import('./multiplayer.js?v=30');
+    mp = await import('./multiplayer.js?v=31');
     const name = playerName();
     roomCode = code;
     myId = mp.generatePlayerId();
@@ -292,7 +290,7 @@ async function joinPartyFlow(code) {
 async function rejoinPartyFlow(code, playerId) {
   mode = 'party';
   try {
-    mp = await import('./multiplayer.js?v=30');
+    mp = await import('./multiplayer.js?v=31');
     roomCode = code;
     myId = playerId;
     await mp.rejoinParty(code, { playerId, name: playerName(), identity: identity() });
@@ -313,7 +311,7 @@ async function rejoinPartyFlow(code, playerId) {
  */
 async function routeJoin(code) {
   try {
-    mp = await import('./multiplayer.js?v=30');
+    mp = await import('./multiplayer.js?v=31');
     const info = await mp.peekRoom(code);
     if (!info.exists) throw new Error(`Room "${code}" not found.`);
     const saved = loadRoomIdentity(code);
@@ -944,7 +942,7 @@ let signedInUser = null;
 let signedInEmail = ''; // shown on the account screen
 
 async function ensureAuthMod() {
-  if (!authMod) authMod = await import('./auth.js?v=30');
+  if (!authMod) authMod = await import('./auth.js?v=31');
   return authMod;
 }
 
@@ -1050,23 +1048,18 @@ async function handleAuthChange(user) {
 }
 
 /**
- * Google sign-in, redirect-only. A popup flow flashes and instantly closes on
- * any browser that blocks third-party cookies or enforces COOP - which is most
- * of them now - so we skip the popup entirely and use a full-page redirect,
- * which does not depend on a popup window at all. The breadcrumb tells boot to
- * finish the sign-in when Google sends us back; completeRedirect() there
- * surfaces a clear error (e.g. an unauthorised domain) if it did not work.
+ * Google sign-in via popup. On success the popup resolves and the auth listener
+ * (handleAuthChange) completes the sign-in; on failure we show the reason.
  */
 async function handleGoogle() {
   ui.setAuthError('');
   ui.setAuthBusy(true);
   try {
-    localStorage.setItem(AUTH_REDIRECT_KEY, '1');
     const a = await ensureAuthMod();
-    await a.signInWithGoogleRedirect(); // navigates away to Google; no return on success
+    await a.signInWithGoogle();
   } catch (err) {
-    localStorage.removeItem(AUTH_REDIRECT_KEY);
     ui.setAuthError(err.message || 'Google sign-in failed.');
+  } finally {
     ui.setAuthBusy(false);
   }
 }
@@ -1105,25 +1098,14 @@ async function runAuth(fn) {
  * must not pull in Firebase for a guest who is only here to play solo.
  */
 async function restoreSessionIfAny() {
-  const returningFromRedirect = localStorage.getItem(AUTH_REDIRECT_KEY);
-  if (!localStorage.getItem(AUTH_HINT_KEY) && !returningFromRedirect) return;
+  if (!localStorage.getItem(AUTH_HINT_KEY)) return;
   try {
     const a = await ensureAuthMod();
     if (!authWatching) {
       authWatching = true;
       await a.onAuthChange(handleAuthChange);
     }
-    if (returningFromRedirect) {
-      localStorage.removeItem(AUTH_REDIRECT_KEY);
-      try {
-        await a.completeRedirect(); // finishes the Google sign-in we bounced through
-      } catch (err) {
-        ui.showAuth();
-        ui.setAuthError(err.message || 'Google sign-in failed.');
-      }
-    }
   } catch {
-    localStorage.removeItem(AUTH_REDIRECT_KEY);
     /* offline or misconfigured - carry on as a guest */
   }
 }

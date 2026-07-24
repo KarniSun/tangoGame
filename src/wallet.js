@@ -20,7 +20,7 @@
 // "already merged" flag is needed.
 // ---------------------------------------------------------------------------
 
-import { getDb } from './firebaseApp.js?v=30';
+import { getDb } from './firebaseApp.js?v=31';
 
 const PROFILE_KEY = 'tango-profile';
 

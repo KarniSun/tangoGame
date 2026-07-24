@@ -12,7 +12,7 @@
 // That keeps solo mode free of any Firebase dependency.
 // ---------------------------------------------------------------------------
 
-import { getApp, SDK_VERSION } from './firebaseApp.js?v=30';
+import { getApp, SDK_VERSION } from './firebaseApp.js?v=31';
 
 const AUTH_URL = `https://www.gstatic.com/firebasejs/${SDK_VERSION}/firebase-auth.js`;
 
@@ -87,21 +87,18 @@ export async function onAuthChange(callback) {
 }
 
 /**
- * Full-page redirect sign-in with Google. Chosen over signInWithPopup because a
- * popup silently fails on browsers that block third-party cookies or enforce
- * COOP - it opens and instantly closes - whereas a redirect navigates the top
- * window and does not depend on a popup at all.
+ * Google sign-in via popup. Deliberately NOT signInWithRedirect: redirect loads
+ * a hidden iframe from the authDomain (…firebaseapp.com), a different site than
+ * this app (…github.io), and browsers now block that cross-site storage, so the
+ * redirect completes at Google but getRedirectResult comes back null and the
+ * sign-in never lands. The popup hands its result back by postMessage, which is
+ * not subject to that partitioning. The fully robust alternative is to serve the
+ * app on the same domain as the authDomain (Firebase Hosting).
  */
-export async function signInWithGoogleRedirect() {
+export async function signInWithGoogle() {
   await ensureAuth();
   const provider = new sdk.GoogleAuthProvider();
-  return attempt(() => sdk.signInWithRedirect(auth, provider));
-}
-
-/** Finish a redirect sign-in after the page has navigated back. */
-export async function completeRedirect() {
-  await ensureAuth();
-  return attempt(() => sdk.getRedirectResult(auth));
+  return attempt(() => sdk.signInWithPopup(auth, provider));
 }
 
 export async function signUpWithEmail(email, password) {
